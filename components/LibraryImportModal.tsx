@@ -530,7 +530,7 @@ export default function LibraryImportModal({
                               <div className="flex-shrink-0">
                                 {selected.poster_path ? (
                                   <img
-                                    src={getPosterUrl(selected.poster_path, 'w92')}
+                                    src={getPosterUrl(selected.poster_path ?? undefined, 'w92') || ''}
                                     alt={title}
                                     className="w-12 h-18 object-cover rounded"
                                   />
