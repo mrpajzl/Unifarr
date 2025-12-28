@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
+export const dynamic = 'force-dynamic';
+
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 export async function GET(request: NextRequest) {

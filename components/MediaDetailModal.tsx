@@ -451,7 +451,7 @@ export default function MediaDetailModal({ isOpen, onClose, media, onMediaAdded 
 
   const getRuntime = () => {
     if (!mediaDetails) return null;
-    if (media.media_type === 'movie') {
+    if (mediaDetails.media_type === 'movie') {
       return mediaDetails.runtime;
     } else {
       return mediaDetails.episode_run_time?.[0];

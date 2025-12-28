@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getConfig } from '@/lib/config';
 import { AppConfig, RadarrMovie, SonarrSeries } from '@/types';
@@ -23,7 +23,7 @@ interface TMDBMediaItem {
   inLibrary?: boolean;
 }
 
-export default function ListViewPage() {
+function ListViewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const listType = searchParams.get('type');
@@ -366,6 +366,23 @@ export default function ListViewPage() {
         }}
       />
     </>
+  );
+}
+
+export default function ListViewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <ListViewContent />
+    </Suspense>
   );
 }
 

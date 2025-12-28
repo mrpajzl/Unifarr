@@ -404,7 +404,7 @@ export default function TorrentSearchModal({ isOpen, onClose, movie, series, epi
                   {isEpisode && episode ? (
                     <>S{String(episode.seasonNumber).padStart(2, '0')}E{String(episode.episodeNumber).padStart(2, '0')} - {episode.title || 'Untitled'}</>
                   ) : (
-                    <>{item.title} {item.year && `(${item.year})`}</>
+                    <>{item.title} {'year' in item && item.year && `(${item.year})`}</>
                   )}
                 </p>
               </div>
