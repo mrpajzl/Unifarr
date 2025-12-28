@@ -159,7 +159,11 @@ export default function SettingsPage() {
                     onChange={(e) => {
                       updateServiceConfig('sonarr', { enabled: e.target.checked });
                       if (e.target.checked) {
-                        setTimeout(() => loadServiceStatus({ ...config, sonarr: { ...config.sonarr, enabled: true } }), 100);
+                        const updatedConfig: AppConfig = {
+                          ...config,
+                          sonarr: config.sonarr ? { ...config.sonarr, enabled: true } : { enabled: true, url: '', apiKey: '' }
+                        };
+                        setTimeout(() => loadServiceStatus(updatedConfig), 100);
                       } else {
                         setSonarrStatus(null);
                       }
@@ -262,7 +266,11 @@ export default function SettingsPage() {
                     onChange={(e) => {
                       updateServiceConfig('radarr', { enabled: e.target.checked });
                       if (e.target.checked) {
-                        setTimeout(() => loadServiceStatus({ ...config, radarr: { ...config.radarr, enabled: true } }), 100);
+                        const updatedConfig: AppConfig = {
+                          ...config,
+                          radarr: config.radarr ? { ...config.radarr, enabled: true } : { enabled: true, url: '', apiKey: '' }
+                        };
+                        setTimeout(() => loadServiceStatus(updatedConfig), 100);
                       } else {
                         setRadarrStatus(null);
                       }
