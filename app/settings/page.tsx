@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getConfig, saveConfig } from '@/lib/config';
-import { AppConfig, ServiceConfig } from '@/types';
+import { AppConfig, ServiceConfig, SonarrSystemStatus, RadarrSystemStatus } from '@/types';
 import Navigation from '@/components/Navigation';
 
 export default function SettingsPage() {
@@ -11,11 +11,67 @@ export default function SettingsPage() {
   const [config, setConfig] = useState<AppConfig>({});
   const [testing, setTesting] = useState<{ sonarr?: boolean; radarr?: boolean; prowlarr?: boolean }>({});
   const [testResults, setTestResults] = useState<{ sonarr?: boolean; radarr?: boolean; prowlarr?: boolean }>({});
+  const [sonarrStatus, setSonarrStatus] = useState<SonarrSystemStatus | null>(null);
+  const [radarrStatus, setRadarrStatus] = useState<RadarrSystemStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState<{ sonarr?: string; radarr?: string }>({});
 
   useEffect(() => {
     const saved = getConfig();
     setConfig(saved);
+    loadServiceStatus(saved);
   }, []);
+
+  const loadServiceStatus = async (cfg: AppConfig) => {
+    setStatusLoading(true);
+    setStatusError({});
+
+    if (cfg.sonarr?.enabled && cfg.sonarr?.url && cfg.sonarr?.apiKey) {
+      try {
+        const response = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: cfg.sonarr.url,
+            apiKey: cfg.sonarr.apiKey,
+            endpoint: '/system/status',
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSonarrStatus(data);
+        } else {
+          setStatusError(prev => ({ ...prev, sonarr: 'Failed to connect' }));
+        }
+      } catch (err) {
+        setStatusError(prev => ({ ...prev, sonarr: 'Connection error' }));
+      }
+    }
+
+    if (cfg.radarr?.enabled && cfg.radarr?.url && cfg.radarr?.apiKey) {
+      try {
+        const response = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: cfg.radarr.url,
+            apiKey: cfg.radarr.apiKey,
+            endpoint: '/system/status',
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setRadarrStatus(data);
+        } else {
+          setStatusError(prev => ({ ...prev, radarr: 'Failed to connect' }));
+        }
+      } catch (err) {
+        setStatusError(prev => ({ ...prev, radarr: 'Connection error' }));
+      }
+    }
+
+    setStatusLoading(false);
+  };
 
   const updateServiceConfig = (service: 'sonarr' | 'radarr' | 'prowlarr', updates: Partial<ServiceConfig>) => {
     setConfig(prev => ({
@@ -77,8 +133,9 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     saveConfig(config);
+    // Reload service status after saving
+    loadServiceStatus(config);
     alert('Settings saved successfully!');
-    router.push('/dashboard');
   };
 
   return (
@@ -99,7 +156,14 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={config.sonarr?.enabled ?? false}
-                    onChange={(e) => updateServiceConfig('sonarr', { enabled: e.target.checked })}
+                    onChange={(e) => {
+                      updateServiceConfig('sonarr', { enabled: e.target.checked });
+                      if (e.target.checked) {
+                        setTimeout(() => loadServiceStatus({ ...config, sonarr: { ...config.sonarr, enabled: true } }), 100);
+                      } else {
+                        setSonarrStatus(null);
+                      }
+                    }}
                     className="w-4 h-4 text-sonarr border-gray-300 rounded focus:ring-sonarr"
                   />
                   <span className="text-sm text-gray-600 dark:text-gray-400">Enable</span>
@@ -151,6 +215,39 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            {/* Sonarr Status Card */}
+            {config.sonarr?.enabled && (sonarrStatus || statusError.sonarr) && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Connection Status</h3>
+                  {sonarrStatus ? (
+                    <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm">
+                      Connected
+                    </span>
+                  ) : statusError.sonarr ? (
+                    <span className="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-full text-sm">
+                      Error
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-full text-sm">
+                      Loading...
+                    </span>
+                  )}
+                </div>
+                {sonarrStatus ? (
+                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                    <p><span className="font-semibold">Version:</span> {sonarrStatus.version}</p>
+                    <p><span className="font-semibold">Instance:</span> {sonarrStatus.instanceName || 'Default'}</p>
+                    <p><span className="font-semibold">Branch:</span> {sonarrStatus.branch}</p>
+                    <p><span className="font-semibold">OS:</span> {sonarrStatus.osName} {sonarrStatus.osVersion}</p>
+                  </div>
+                ) : statusError.sonarr ? (
+                  <p className="text-red-600 dark:text-red-400">{statusError.sonarr}</p>
+                ) : (
+                  <p className="text-gray-500">Loading status...</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Radarr Configuration */}
@@ -162,7 +259,14 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={config.radarr?.enabled ?? false}
-                    onChange={(e) => updateServiceConfig('radarr', { enabled: e.target.checked })}
+                    onChange={(e) => {
+                      updateServiceConfig('radarr', { enabled: e.target.checked });
+                      if (e.target.checked) {
+                        setTimeout(() => loadServiceStatus({ ...config, radarr: { ...config.radarr, enabled: true } }), 100);
+                      } else {
+                        setRadarrStatus(null);
+                      }
+                    }}
                     className="w-4 h-4 text-radarr border-gray-300 rounded focus:ring-radarr"
                   />
                   <span className="text-sm text-gray-600 dark:text-gray-400">Enable</span>
@@ -214,6 +318,39 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            {/* Radarr Status Card */}
+            {config.radarr?.enabled && (radarrStatus || statusError.radarr) && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Connection Status</h3>
+                  {radarrStatus ? (
+                    <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm">
+                      Connected
+                    </span>
+                  ) : statusError.radarr ? (
+                    <span className="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-full text-sm">
+                      Error
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-full text-sm">
+                      Loading...
+                    </span>
+                  )}
+                </div>
+                {radarrStatus ? (
+                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                    <p><span className="font-semibold">Version:</span> {radarrStatus.version}</p>
+                    <p><span className="font-semibold">Instance:</span> {radarrStatus.instanceName || 'Default'}</p>
+                    <p><span className="font-semibold">Branch:</span> {radarrStatus.branch}</p>
+                    <p><span className="font-semibold">OS:</span> {radarrStatus.osName} {radarrStatus.osVersion}</p>
+                  </div>
+                ) : statusError.radarr ? (
+                  <p className="text-red-600 dark:text-red-400">{statusError.radarr}</p>
+                ) : (
+                  <p className="text-gray-500">Loading status...</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Prowlarr Configuration */}
