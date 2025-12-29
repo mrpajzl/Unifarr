@@ -18,8 +18,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Generate Prisma Client
 # Set OPENSSL_LIB_DIR to help Prisma detect OpenSSL 3.0
+# Only generate Prisma on supported architectures (amd64/x86_64 and arm64/aarch64)
 ENV OPENSSL_LIB_DIR=/usr/lib
-RUN npx prisma generate
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "aarch64" ]; then \
+        npx prisma generate; \
+    else \
+        echo "Skipping Prisma generate for unsupported architecture: $ARCH"; \
+    fi
 
 RUN npm run build
 
