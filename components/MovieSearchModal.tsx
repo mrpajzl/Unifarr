@@ -23,9 +23,12 @@ export default function MovieSearchModal({ isOpen, onClose, onMovieAdded }: Movi
 
   useEffect(() => {
     if (isOpen) {
-      const saved = getConfig();
-      setConfig(saved);
-      loadConfig(saved);
+      const loadConfigAsync = async () => {
+        const saved = await getConfig();
+        setConfig(saved);
+        loadConfig(saved);
+      };
+      loadConfigAsync();
     }
   }, [isOpen]);
 

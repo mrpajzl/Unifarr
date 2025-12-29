@@ -28,10 +28,13 @@ export default function CombinedSearchModal({ isOpen, onClose, onMediaAdded }: C
 
   useEffect(() => {
     if (isOpen) {
-      const saved = getConfig();
-      setConfig(saved);
-      loadDatabaseMedia(saved);
-      loadConfig(saved);
+      const loadConfigAsync = async () => {
+        const saved = await getConfig();
+        setConfig(saved);
+        loadDatabaseMedia(saved);
+        loadConfig(saved);
+      };
+      loadConfigAsync();
     } else {
       // Reset search when modal closes
       setSearchTerm('');

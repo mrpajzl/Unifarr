@@ -18,13 +18,16 @@ export default function RadarrPage() {
   const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.radarr?.enabled) {
-      loadMovies(saved);
-    } else {
-      setLoading(false);
-    }
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.radarr?.enabled) {
+        loadMovies(saved);
+      } else {
+        setLoading(false);
+      }
+    };
+    loadConfigAsync();
   }, []);
 
   const loadMovies = async (cfg: AppConfig) => {

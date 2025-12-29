@@ -17,9 +17,12 @@ export default function SettingsPage() {
   const [statusError, setStatusError] = useState<{ sonarr?: string; radarr?: string }>({});
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    loadServiceStatus(saved);
+    const loadConfig = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      loadServiceStatus(saved);
+    };
+    loadConfig();
   }, []);
 
   const loadServiceStatus = async (cfg: AppConfig) => {

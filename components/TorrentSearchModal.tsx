@@ -54,15 +54,18 @@ export default function TorrentSearchModal({ isOpen, onClose, movie, series, epi
 
   useEffect(() => {
     if (isOpen && item) {
-      const saved = getConfig();
-      setConfig(saved);
-      if (isMovie && movie?.id) {
-        searchReleases(saved, movie.id, 'radarr', 'movie');
-      } else if (isSeries && series?.id) {
-        searchReleases(saved, series.id, 'sonarr', 'series');
-      } else if (isEpisode && episode?.id) {
-        searchReleases(saved, episode.id, 'sonarr', 'episode');
-      }
+      const loadConfig = async () => {
+        const saved = await getConfig();
+        setConfig(saved);
+        if (isMovie && movie?.id) {
+          searchReleases(saved, movie.id, 'radarr', 'movie');
+        } else if (isSeries && series?.id) {
+          searchReleases(saved, series.id, 'sonarr', 'series');
+        } else if (isEpisode && episode?.id) {
+          searchReleases(saved, episode.id, 'sonarr', 'episode');
+        }
+      };
+      loadConfig();
     }
   }, [isOpen, movie, series, episode, isMovie, isSeries, isEpisode]);
 

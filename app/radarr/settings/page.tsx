@@ -18,13 +18,16 @@ export default function RadarrSettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.radarr?.enabled) {
-      loadAllSettings(saved);
-    } else {
-      setLoading(false);
-    }
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.radarr?.enabled) {
+        loadAllSettings(saved);
+      } else {
+        setLoading(false);
+      }
+    };
+    loadConfigAsync();
   }, []);
 
   const loadAllSettings = async (cfg: AppConfig) => {

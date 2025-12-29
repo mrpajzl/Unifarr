@@ -42,14 +42,17 @@ function ListViewContent() {
   const [sonarrSeries, setSonarrSeries] = useState<SonarrSeries[]>([]);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.tmdb?.apiKey && listType && mediaType) {
-      loadItems(saved.tmdb.apiKey, 1);
-    } else {
-      setLoading(false);
-    }
-    loadLibraryData(saved);
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.tmdb?.apiKey && listType && mediaType) {
+        loadItems(saved.tmdb.apiKey, 1);
+      } else {
+        setLoading(false);
+      }
+      loadLibraryData(saved);
+    };
+    loadConfigAsync();
   }, [listType, mediaType]);
 
   // Update library status when library data changes

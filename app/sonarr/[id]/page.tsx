@@ -20,16 +20,19 @@ export default function SeriesDetailPage() {
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.sonarr?.enabled && id) {
-      loadSeries(saved, parseInt(id));
-    } else {
-      setLoading(false);
-      if (!saved.sonarr?.enabled) {
-        setError('Sonarr is not enabled');
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.sonarr?.enabled && id) {
+        loadSeries(saved, parseInt(id));
+      } else {
+        setLoading(false);
+        if (!saved.sonarr?.enabled) {
+          setError('Sonarr is not enabled');
+        }
       }
-    }
+    };
+    loadConfigAsync();
   }, [id]);
 
   const loadSeries = async (cfg: AppConfig, seriesId: number) => {

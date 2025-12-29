@@ -1,0 +1,28 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Config {
+  id        String   @id @default("default")
+  sonarrUrl String?
+  sonarrApiKey String?
+  sonarrEnabled Boolean @default(false)
+  radarrUrl String?
+  radarrApiKey String?
+  radarrEnabled Boolean @default(false)
+  prowlarrUrl String?
+  prowlarrApiKey String?
+  prowlarrEnabled Boolean @default(false)
+  tmdbApiKey String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+

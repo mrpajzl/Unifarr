@@ -10,8 +10,11 @@ export default function DashboardPage() {
   const [config, setConfig] = useState<AppConfig>({});
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
+    const loadConfig = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+    };
+    loadConfig();
   }, []);
 
   return (

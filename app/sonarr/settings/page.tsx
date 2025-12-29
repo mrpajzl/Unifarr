@@ -19,13 +19,16 @@ export default function SonarrSettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.sonarr?.enabled) {
-      loadAllSettings(saved);
-    } else {
-      setLoading(false);
-    }
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.sonarr?.enabled) {
+        loadAllSettings(saved);
+      } else {
+        setLoading(false);
+      }
+    };
+    loadConfigAsync();
   }, []);
 
   const loadAllSettings = async (cfg: AppConfig) => {

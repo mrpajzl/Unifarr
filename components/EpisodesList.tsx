@@ -31,14 +31,17 @@ export default function EpisodesList({
   const [config, setConfig] = useState<AppConfig>({});
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.sonarr?.enabled) {
-      loadEpisodes(saved);
-    } else {
-      setLoading(false);
-      setError('Sonarr is not enabled');
-    }
+    const loadConfig = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.sonarr?.enabled) {
+        loadEpisodes(saved);
+      } else {
+        setLoading(false);
+        setError('Sonarr is not enabled');
+      }
+    };
+    loadConfig();
   }, [seriesId]);
 
   useEffect(() => {

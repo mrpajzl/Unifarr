@@ -12,8 +12,11 @@ export default function ConfigurePage() {
   const [testResults, setTestResults] = useState<{ sonarr?: boolean; radarr?: boolean }>({});
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
+    const loadConfig = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+    };
+    loadConfig();
   }, []);
 
   const updateServiceConfig = (service: 'sonarr' | 'radarr', updates: Partial<ServiceConfig>) => {
@@ -60,9 +63,13 @@ export default function ConfigurePage() {
     }
   };
 
-  const handleSave = () => {
-    saveConfig(config);
-    router.push('/dashboard');
+  const handleSave = async () => {
+    const success = await saveConfig(config);
+    if (success) {
+      router.push('/dashboard');
+    } else {
+      alert('Failed to save configuration. Please try again.');
+    }
   };
 
   return (

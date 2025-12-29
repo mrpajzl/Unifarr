@@ -50,10 +50,13 @@ export default function LibraryImportModal({
 
   useEffect(() => {
     if (isOpen) {
-      const saved = getConfig();
-      setConfig(saved);
-      loadConfig(saved);
-      scanForFolders(saved);
+      const loadConfigAsync = async () => {
+        const saved = await getConfig();
+        setConfig(saved);
+        loadConfig(saved);
+        scanForFolders(saved);
+      };
+      loadConfigAsync();
     } else {
       // Reset state when modal closes
       setFolders([]);

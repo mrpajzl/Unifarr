@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: unifarr-postgres
+    environment:
+      POSTGRES_USER: unifarr
+      POSTGRES_PASSWORD: unifarr
+      POSTGRES_DB: unifarr
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unifarr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - unifarr-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: unifarr-app
+    environment:
+      DATABASE_URL: postgresql://unifarr:unifarr@postgres:5432/unifarr
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - unifarr-network
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
+
+volumes:
+  postgres_data:
+
+networks:
+  unifarr-network:
+    driver: bridge
+

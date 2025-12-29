@@ -33,6 +33,15 @@ export default function MediaView({ items, type, loading = false }: MediaViewPro
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode());
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [config, setConfig] = useState<{ sonarr?: any; radarr?: any }>({});
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+    };
+    loadConfig();
+  }, []);
 
   useEffect(() => {
     setStoredViewMode(viewMode);
@@ -161,7 +170,6 @@ export default function MediaView({ items, type, loading = false }: MediaViewPro
     }
 
     // Get config to determine which service to use
-    const config = getConfig();
     const service = type === 'movie' ? 'radarr' : 'sonarr';
     const serviceConfig = type === 'movie' ? config.radarr : config.sonarr;
 

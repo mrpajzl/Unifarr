@@ -9,12 +9,16 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!hasConfig()) {
-      router.push('/configure');
-    } else {
-      router.push('/dashboard');
-    }
-    setLoading(false);
+    const checkConfig = async () => {
+      const hasConfigValue = await hasConfig();
+      if (!hasConfigValue) {
+        router.push('/configure');
+      } else {
+        router.push('/dashboard');
+      }
+      setLoading(false);
+    };
+    checkConfig();
   }, [router]);
 
   if (loading) {

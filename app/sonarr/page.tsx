@@ -16,13 +16,16 @@ export default function SonarrPage() {
   const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.sonarr?.enabled) {
-      loadSeries(saved);
-    } else {
-      setLoading(false);
-    }
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.sonarr?.enabled) {
+        loadSeries(saved);
+      } else {
+        setLoading(false);
+      }
+    };
+    loadConfigAsync();
   }, []);
 
   const loadSeries = async (cfg: AppConfig) => {

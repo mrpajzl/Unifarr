@@ -47,15 +47,19 @@ export default function MediaDiscovery() {
   const [sonarrSeries, setSonarrSeries] = useState<SonarrSeries[]>([]);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.tmdb?.apiKey) {
-      loadAllLists(saved.tmdb.apiKey);
-    } else {
-      // Mark all lists as not loading if no API key
-      setLists(prev => prev.map(list => ({ ...list, loading: false })));
-    }
-    loadLibraryData(saved);
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.tmdb?.apiKey) {
+        loadAllLists(saved.tmdb.apiKey);
+      } else {
+        // Mark all lists as not loading if no API key
+        setLists(prev => prev.map(list => ({ ...list, loading: false })));
+      }
+      // Load library data after config is loaded
+      await loadLibraryData(saved);
+    };
+    loadConfigAsync();
   }, []);
 
   // Update library status when library data changes

@@ -46,14 +46,17 @@ export default function MediaDetailModal({ isOpen, onClose, media, onMediaAdded 
   const [libraryItem, setLibraryItem] = useState<RadarrMovie | SonarrSeries | null>(null);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.radarr?.enabled) {
-      loadRadarrConfig(saved);
-    }
-    if (saved.sonarr?.enabled) {
-      loadSonarrConfig(saved);
-    }
+    const loadConfig = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.radarr?.enabled) {
+        loadRadarrConfig(saved);
+      }
+      if (saved.sonarr?.enabled) {
+        loadSonarrConfig(saved);
+      }
+    };
+    loadConfig();
   }, []);
 
   useEffect(() => {

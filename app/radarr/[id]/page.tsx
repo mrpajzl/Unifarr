@@ -21,16 +21,19 @@ export default function MovieDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    const saved = getConfig();
-    setConfig(saved);
-    if (saved.radarr?.enabled && id) {
-      loadMovie(saved, parseInt(id));
-    } else {
-      setLoading(false);
-      if (!saved.radarr?.enabled) {
-        setError('Radarr is not enabled');
+    const loadConfigAsync = async () => {
+      const saved = await getConfig();
+      setConfig(saved);
+      if (saved.radarr?.enabled && id) {
+        loadMovie(saved, parseInt(id));
+      } else {
+        setLoading(false);
+        if (!saved.radarr?.enabled) {
+          setError('Radarr is not enabled');
+        }
       }
-    }
+    };
+    loadConfigAsync();
   }, [id]);
 
   const loadMovie = async (cfg: AppConfig, movieId: number) => {
