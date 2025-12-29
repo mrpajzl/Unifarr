@@ -8,6 +8,15 @@ RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
+# Check architecture early - only support amd64 and arm64
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "aarch64" ]; then \
+        echo "ERROR: Unsupported architecture: $ARCH" && \
+        echo "This build only supports linux/amd64 (x86_64) and linux/arm64 (aarch64)" && \
+        echo "Prisma and Next.js do not support arm/v6 or arm/v7 architectures" && \
+        exit 1; \
+    fi
+
 RUN apk add --no-cache openssl openssl-dev
 WORKDIR /app
 
