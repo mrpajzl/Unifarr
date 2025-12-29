@@ -46,6 +46,108 @@ The Docker setup includes:
 - Automatic database schema initialization
 - Persistent data volumes
 
+#### Deploying on TrueNAS Scale
+
+The easiest way to deploy Unifarr on TrueNAS Scale is using Docker Compose with the pre-built image from GitHub Container Registry (GHCR).
+
+**Quick Start (Copy & Paste):**
+
+1. **SSH into your TrueNAS system** and create a directory for Unifarr:
+   ```bash
+   mkdir -p /mnt/pool/docker/unifarr
+   cd /mnt/pool/docker/unifarr
+   ```
+
+2. **Create a `docker-compose.yml` file** with the following content:
+   ```yaml
+   version: '3.8'
+
+   services:
+     postgres:
+       image: postgres:16-alpine
+       container_name: unifarr-postgres
+       environment:
+         POSTGRES_USER: unifarr
+         POSTGRES_PASSWORD: unifarr
+         POSTGRES_DB: unifarr
+       ports:
+         - "5432:5432"
+       volumes:
+         - postgres_data:/var/lib/postgresql/data
+       healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U unifarr"]
+         interval: 10s
+         timeout: 5s
+         retries: 5
+       networks:
+         - unifarr-network
+       restart: unless-stopped
+
+     app:
+       image: ghcr.io/mrpajzl/unifarr:latest
+       container_name: unifarr-app
+       environment:
+         DATABASE_URL: postgresql://unifarr:unifarr@postgres:5432/unifarr
+         NODE_ENV: production
+       ports:
+         - "3000:3000"
+       depends_on:
+         postgres:
+           condition: service_healthy
+       networks:
+         - unifarr-network
+       restart: unless-stopped
+
+   volumes:
+     postgres_data:
+
+   networks:
+     unifarr-network:
+       driver: bridge
+   ```
+
+3. **Find your GitHub Container Registry image name:**
+   - Go to the GitHub repository page
+   - Click on "Packages" (usually visible on the right sidebar or in the repository menu)
+   - Or navigate to `https://github.com/mrpajzl/unifarr/pkgs/container/unifarr`
+   - The image name will be in the format: `ghcr.io/mrpajzl/unifarr:latest`
+   ```bash
+   nano docker-compose.yml
+   # Update the image line (e.g., change ghcr.io/mrpajzl/unifarr:latest to ghcr.io/ondrejzraly/unifarr:latest)
+   ```
+
+4. **Start the containers:**
+   ```bash
+   docker compose up -d
+   ```
+
+5. **Access the application:**
+   - Open your browser and navigate to `http://<your-truenas-ip>:3000`
+   - Make sure port 3000 is not blocked by your firewall
+
+6. **Configure Unifarr:**
+   - On first launch, you'll be redirected to the configuration page
+   - Enter your Sonarr URL (e.g., `http://192.168.1.100:8989`) and API key
+   - Enter your Radarr URL (e.g., `http://192.168.1.100:7878`) and API key
+   - Test connections and save your configuration
+
+**Updating the Application:**
+
+To update to the latest version, simply pull the new image and restart:
+```bash
+cd /mnt/pool/docker/unifarr
+docker compose pull
+docker compose up -d
+```
+
+**Important Notes:**
+
+- **Image Location**: The Docker image is hosted on GitHub Container Registry (GHCR). Find the exact image name by visiting the repository's Packages page. The format is `ghcr.io/mrpajzl/unifarr:latest`. 
+- **Network Access**: Ensure Unifarr can reach your Sonarr/Radarr instances. Use their internal IP addresses if on the same network, or full URLs for external services
+- **Storage**: PostgreSQL data is stored in a Docker volume (`postgres_data`) and persists across container restarts
+- **Backups**: To backup your configuration, you can export the PostgreSQL volume or use `docker exec` to create a database dump
+- **Firewall**: Ensure port 3000 is open in your TrueNAS firewall settings if accessing from other devices on your network
+
 #### Local Development
 
 **Quick Setup (Recommended):**
