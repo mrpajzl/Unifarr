@@ -50,6 +50,8 @@ The Docker setup includes:
 
 The easiest way to deploy Unifarr on TrueNAS Scale is using Docker Compose with the pre-built image from GitHub Container Registry (GHCR).
 
+**⚠️ Important: If you get a "port already allocated" error, see the troubleshooting section below for solutions.**
+
 **Quick Start (Copy & Paste):**
 
 1. **SSH into your TrueNAS system** and create a directory for Unifarr:
@@ -60,8 +62,6 @@ The easiest way to deploy Unifarr on TrueNAS Scale is using Docker Compose with 
 
 2. **Create a `docker-compose.yml` file** with the following content:
    ```yaml
-   version: '3.8'
-
    services:
      postgres:
        image: postgres:16-alpine
@@ -92,11 +92,11 @@ The easiest way to deploy Unifarr on TrueNAS Scale is using Docker Compose with 
        ports:
          - "3000:3000"
        depends_on:
-         postgres:
-           condition: service_healthy
+         - postgres
        networks:
          - unifarr-network
        restart: unless-stopped
+       command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
 
    volumes:
      postgres_data:
@@ -147,6 +147,137 @@ docker compose up -d
 - **Storage**: PostgreSQL data is stored in a Docker volume (`postgres_data`) and persists across container restarts
 - **Backups**: To backup your configuration, you can export the PostgreSQL volume or use `docker exec` to create a database dump
 - **Firewall**: Ensure port 3000 is open in your TrueNAS firewall settings if accessing from other devices on your network
+
+**Troubleshooting:**
+
+If you encounter errors when deploying through TrueNAS Scale Apps UI:
+
+1. **Check the logs first:**
+   ```bash
+   # TrueNAS Apps log
+   cat /var/log/app_lifecycle.log
+   
+   # Container logs (if containers started)
+   docker logs unifarr-app
+   docker logs unifarr-postgres
+   
+   # Check if containers are running
+   docker ps -a | grep unifarr
+   ```
+
+2. **Verify the image exists and is accessible:**
+   - Make sure the GitHub Container Registry image is public or you have proper authentication configured
+   - Try pulling the image manually: `docker pull ghcr.io/YOUR_USERNAME/unifarr:latest`
+   - Check if the image is accessible: `docker images | grep unifarr`
+
+3. **Common issues and fixes:**
+   
+   - **Port already allocated**: If you see `Bind for 0.0.0.0:3000 failed: port is already allocated`, port 3000 is in use. 
+     
+     **Option A: Clean up existing containers (Recommended)**
+     ```bash
+     # SSH into TrueNAS and run these commands:
+     
+     # Find all unifarr containers (including stopped ones)
+     docker ps -a | grep unifarr
+     
+     # Stop all unifarr containers
+     docker stop $(docker ps -aq --filter "name=unifarr") 2>/dev/null || true
+     
+     # Remove all unifarr containers
+     docker rm $(docker ps -aq --filter "name=unifarr") 2>/dev/null || true
+     
+     # Find what else might be using port 3000
+     docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}" | grep 3000
+     
+     # If you find another container, stop it:
+     # docker stop <container-id-or-name>
+     # docker rm <container-id-or-name>
+     ```
+     
+     **Option B: Use a different port (Quick fix)**
+     - Use the `docker-compose.truenas-port3001.yml` file which uses port 3001
+     - Or manually change the port mapping in your docker-compose.yml:
+       ```yaml
+       ports:
+         - "3001:3000"  # Use port 3001 on host, 3000 in container
+       ```
+     - Then access the app at `http://<your-truenas-ip>:3001`
+   
+   - **Version attribute obsolete**: TrueNAS Scale's newer Docker Compose doesn't need the `version` line. Remove it if you see a warning.
+   
+   - **Image pull errors**: If the image is private, you may need to authenticate with GHCR first:
+     ```bash
+     echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+     ```
+   
+   - **Architecture mismatch**: The image supports both `linux/amd64` and `linux/arm64`. For Intel 64-bit, use `linux/amd64` which should be automatically selected.
+   
+   - **Prisma OpenSSL error**: If you see an error like `Prisma Client could not locate the Query Engine for runtime "linux-musl-arm64-openssl-1.1.x"`, this means the image was built with an older Prisma schema. The schema has been updated to support both OpenSSL 3.0.x and 1.1.x. You'll need to pull the latest image (after it's been rebuilt) or rebuild locally:
+     ```bash
+     docker compose pull
+     docker compose up -d
+     ```
+   
+   - **Healthcheck/depends_on issues**: If TrueNAS Scale doesn't support `condition: service_healthy`, try this simplified version:
+     ```yaml
+     depends_on:
+       - postgres
+     ```
+     And increase the sleep time in the command:
+     ```yaml
+     command: sh -c "sleep 15 && npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
+     ```
+   
+   - **Container name conflicts**: If you get "container name already in use" errors, remove old containers first:
+     ```bash
+     docker rm -f unifarr-app unifarr-postgres
+     docker compose up -d
+     ```
+   
+   - **Network issues**: If containers can't communicate, try removing the custom network and use the default:
+     ```yaml
+     # Remove the networks section and network references
+     # Containers will use the default bridge network
+     ```
+
+4. **Alternative: Minimal docker-compose (if above doesn't work):**
+   Create a simplified version without healthchecks:
+   ```yaml
+   services:
+     postgres:
+       image: postgres:16-alpine
+       environment:
+         POSTGRES_USER: unifarr
+         POSTGRES_PASSWORD: unifarr
+         POSTGRES_DB: unifarr
+       volumes:
+         - postgres_data:/var/lib/postgresql/data
+       restart: unless-stopped
+   
+     app:
+       image: ghcr.io/YOUR_USERNAME/unifarr:latest
+       environment:
+         DATABASE_URL: postgresql://unifarr:unifarr@postgres:5432/unifarr
+         NODE_ENV: production
+       ports:
+         - "3000:3000"
+       depends_on:
+         - postgres
+       restart: unless-stopped
+       command: sh -c "sleep 15 && npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
+   
+   volumes:
+     postgres_data:
+   ```
+
+5. **Deploy via SSH instead:**
+   If the Apps UI continues to have issues, you can deploy directly via SSH (this often works better):
+   ```bash
+   cd /mnt/pool/docker/unifarr
+   docker compose down  # Remove any existing containers
+   docker compose up -d
+   ```
 
 #### Local Development
 

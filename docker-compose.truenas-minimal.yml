@@ -1,36 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: unifarr-postgres
     environment:
       POSTGRES_USER: unifarr
       POSTGRES_PASSWORD: unifarr
       POSTGRES_DB: unifarr
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U unifarr"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
 
   app:
     image: ghcr.io/mrpajzl/unifarr:latest
-    container_name: unifarr-app
     environment:
       DATABASE_URL: postgresql://unifarr:unifarr@postgres:5432/unifarr
       NODE_ENV: production
     ports:
       - "3000:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     restart: unless-stopped
-    command: sh -c "sleep 5 && npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
+    command: sh -c "sleep 15 && npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
 
 volumes:
   postgres_data:
