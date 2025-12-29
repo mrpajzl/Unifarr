@@ -8,6 +8,7 @@ RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl openssl-dev
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -16,6 +17,8 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Generate Prisma Client
+# Set OPENSSL_LIB_DIR to help Prisma detect OpenSSL 3.0
+ENV OPENSSL_LIB_DIR=/usr/lib
 RUN npx prisma generate
 
 RUN npm run build
