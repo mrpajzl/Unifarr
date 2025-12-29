@@ -3,7 +3,9 @@
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-1.1.x", "linux-musl-x86_64-openssl-3.0.x", "linux-musl-x86_64-openssl-1.1.x"]
+  // Alpine Linux (musl) targets for multi-arch Docker builds.
+  // Note: Prisma uses `linux-musl-...` (not `linux-musl-x86_64-...`) for amd64.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
