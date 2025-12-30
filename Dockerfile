@@ -40,6 +40,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
+# Set OPENSSL_LIB_DIR to help Prisma detect OpenSSL
+ENV OPENSSL_LIB_DIR=/usr/lib
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
