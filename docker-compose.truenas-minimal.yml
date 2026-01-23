@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,6 +9,14 @@ services:
       POSTGRES_DB: unifarr
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unifarr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - unifarr-network
     restart: unless-stopped
 
   app:
@@ -14,12 +24,21 @@ services:
     environment:
       DATABASE_URL: postgresql://unifarr:unifarr@postgres:5432/unifarr
       NODE_ENV: production
+      OPENSSL_LIB_DIR: /usr/lib
+      OPENSSL_CONF: /dev/null
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    networks:
+      - unifarr-network
     restart: unless-stopped
-    command: sh -c "sleep 15 && npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && node server.js"
 
 volumes:
   postgres_data:
+
+networks:
+  unifarr-network:
+    driver: bridge
