@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: unifarr-backend
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    volumes:
+      - /mnt/storage/media/movies:/data/movies
+      - /mnt/storage/media/tvshows:/data/tvshows
+      - /mnt/storage/media/downloads:/data/downloads
+      - ./backend/data:/app/data
+      - ./backend/downloads:/app/downloads
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/data/unifarr.db
+      - MOVIES_PATH=/data/movies
+      - TV_PATH=/data/tvshows
+      - DOWNLOADS_PATH=/data/downloads
+    networks:
+      - unifarr
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NUXT_PUBLIC_API_BASE=http://10.0.0.141:3002
+    container_name: unifarr-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NUXT_PUBLIC_API_BASE=http://10.0.0.141:3002
+    depends_on:
+      - backend
+    networks:
+      - unifarr
+
+networks:
+  unifarr:
+    driver: bridge

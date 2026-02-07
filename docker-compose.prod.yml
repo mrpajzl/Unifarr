@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/mrpajzl/unifarr/backend:latest
+    container_name: unifarr-backend
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    volumes:
+      - /mnt/storage/media/movies:/data/movies
+      - /mnt/storage/media/tvshows:/data/tvshows
+      - /mnt/storage/media/downloads:/data/downloads
+      - unifarr-data:/app/data
+      - unifarr-downloads:/app/downloads
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - DATABASE_PATH=/app/data/unifarr.db
+      - MOVIES_PATH=/data/movies
+      - TV_PATH=/data/tvshows
+      - DOWNLOADS_PATH=/data/downloads
+    networks:
+      - unifarr
+
+  frontend:
+    image: ghcr.io/mrpajzl/unifarr/frontend:latest
+    container_name: unifarr-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NUXT_PUBLIC_API_BASE=http://10.0.0.141:3002
+    depends_on:
+      - backend
+    networks:
+      - unifarr
+
+networks:
+  unifarr:
+    driver: bridge
+
+volumes:
+  unifarr-data:
+  unifarr-downloads:

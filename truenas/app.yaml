@@ -1,0 +1,26 @@
+app_version: "1.0.0"
+capabilities:
+- description: Unifarr requires access to your media library
+  name: HOST_MOUNTS
+categories:
+- media
+description: Unified media library manager with torrent integration
+home: https://github.com/yourusername/unifarr
+icon: https://raw.githubusercontent.com/yourusername/unifarr/main/icon.png
+keywords:
+- media
+- movies
+- tv
+- torrents
+- plex
+- jellyfin
+maintainers:
+- email: your@email.com
+  name: Your Name
+  url: https://github.com/yourusername
+name: unifarr
+sources:
+- https://github.com/yourusername/unifarr
+title: Unifarr
+train: stable
+version: 1.0.0

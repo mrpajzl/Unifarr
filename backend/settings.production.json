@@ -1,0 +1,39 @@
+{
+  "tmdbApiKey": "1a8c98a20738aab6405008e5c99b683d",
+  "moviesPath": "/data/movies",
+  "tvPath": "/data/tvshows",
+  "downloadsPath": "/data/downloads",
+  "qbittorrent": {
+    "host": "localhost",
+    "port": 8080,
+    "username": "admin",
+    "password": ""
+  },
+  "webshare": {
+    "username": "pajzl",
+    "password": "Cx3250ftrm?",
+    "enabled": true
+  },
+  "trackers": {
+    "sktorrent": {
+      "enabled": true,
+      "username": "mrpajzl",
+      "password": "Cx3250ftrm?"
+    }
+  },
+  "searchTemplates": {
+    "movies": [
+      "{Movie Title} {Release Year}",
+      "{Movie OriginalTitle} {Release Year}"
+    ],
+    "tv": [
+      "{Series Title} S{Season:2}E{Episode:2}",
+      "{Series OriginalTitle} S{Season:2}E{Episode:2}"
+    ],
+    "overrides": {}
+  },
+  "preferences": {
+    "languages": ["CZ", "EN"],
+    "minTitleScore": 50
+  }
+}

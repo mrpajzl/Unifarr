@@ -1,0 +1,129 @@
+groups:
+  - name: "Configuration"
+    description: "Unifarr Configuration"
+  - name: "Storage"
+    description: "Configure Storage for Unifarr"
+  - name: "Networking"
+    description: "Networking Configuration"
+
+questions:
+  # TMDB Configuration
+  - variable: tmdbApiKey
+    label: "TMDB API Key"
+    group: "Configuration"
+    schema:
+      type: string
+      required: true
+      private: true
+
+  # qBittorrent Configuration
+  - variable: qbittorrentUsername
+    label: "qBittorrent Username"
+    group: "Configuration"
+    schema:
+      type: string
+      default: "admin"
+      required: true
+
+  - variable: qbittorrentPassword
+    label: "qBittorrent Password"
+    group: "Configuration"
+    schema:
+      type: string
+      default: "adminadmin"
+      required: true
+      private: true
+
+  # Storage - Movies
+  - variable: storageMovies
+    label: "Movies Storage"
+    group: "Storage"
+    schema:
+      type: dict
+      attrs:
+        - variable: type
+          label: "Type"
+          schema:
+            type: string
+            default: "hostPath"
+            enum:
+              - value: "hostPath"
+                description: "Host Path (Path that already exists on the system)"
+        - variable: hostPath
+          label: "Host Path"
+          schema:
+            type: hostpath
+            required: true
+
+  # Storage - TV Shows
+  - variable: storageTv
+    label: "TV Shows Storage"
+    group: "Storage"
+    schema:
+      type: dict
+      attrs:
+        - variable: type
+          label: "Type"
+          schema:
+            type: string
+            default: "hostPath"
+            enum:
+              - value: "hostPath"
+                description: "Host Path (Path that already exists on the system)"
+        - variable: hostPath
+          label: "Host Path"
+          schema:
+            type: hostpath
+            required: true
+
+  # Storage - Downloads
+  - variable: storageDownloads
+    label: "Downloads Storage"
+    group: "Storage"
+    schema:
+      type: dict
+      attrs:
+        - variable: type
+          label: "Type"
+          schema:
+            type: string
+            default: "hostPath"
+            enum:
+              - value: "hostPath"
+                description: "Host Path (Path that already exists on the system)"
+        - variable: hostPath
+          label: "Host Path"
+          schema:
+            type: hostpath
+            required: true
+
+  # Networking
+  - variable: webPort
+    label: "Web Port"
+    group: "Networking"
+    schema:
+      type: int
+      default: 30000
+      min: 9000
+      max: 65535
+      required: true
+
+  - variable: apiPort
+    label: "API Port"
+    group: "Networking"
+    schema:
+      type: int
+      default: 30001
+      min: 9000
+      max: 65535
+      required: true
+
+  - variable: qbittorrentPort
+    label: "qBittorrent Web UI Port"
+    group: "Networking"
+    schema:
+      type: int
+      default: 30080
+      min: 9000
+      max: 65535
+      required: true

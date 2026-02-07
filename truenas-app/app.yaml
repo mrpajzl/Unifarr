@@ -1,0 +1,214 @@
+name: unifarr
+version: "1.0.0"
+title: Unifarr
+description: Unified media management system with torrent integration
+icon: "https://avatars.githubusercontent.com/u/1?"
+home: "https://github.com/yourusername/unifarr"
+sources:
+  - "https://github.com/yourusername/unifarr"
+
+# Dependencies
+dependencies:
+  - name: qbittorrent
+    version: ">=4.5.0"
+
+# Container configuration
+containers:
+  - name: unifarr
+    image: unifarr/unifarr:latest
+    ports:
+      - containerPort: 3000
+        protocol: TCP
+    env:
+      - name: PORT
+        value: "3000"
+      - name: TMDB_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: unifarr-secrets
+            key: tmdb-api-key
+      - name: QBITTORRENT_HOST
+        value: "localhost"
+      - name: QBITTORRENT_PORT
+        value: "8080"
+      - name: QBITTORRENT_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: unifarr-secrets
+            key: qbit-username
+      - name: QBITTORRENT_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: unifarr-secrets
+            key: qbit-password
+      - name: MOVIES_PATH
+        value: "/data/movies"
+      - name: TVSHOWS_PATH
+        value: "/data/tvshows"
+      - name: AUTO_IMPORT
+        value: "true"
+    volumeMounts:
+      - name: config
+        mountPath: /app/data
+      - name: movies
+        mountPath: /data/movies
+      - name: tvshows
+        mountPath: /data/tvshows
+      - name: downloads
+        mountPath: /downloads
+
+  - name: qbittorrent
+    image: linuxserver/qbittorrent:latest
+    ports:
+      - containerPort: 8080
+        protocol: TCP
+      - containerPort: 6881
+        protocol: TCP
+      - containerPort: 6881
+        protocol: UDP
+    env:
+      - name: PUID
+        value: "1000"
+      - name: PGID
+        value: "1000"
+      - name: TZ
+        value: "UTC"
+      - name: WEBUI_PORT
+        value: "8080"
+    volumeMounts:
+      - name: qbittorrent-config
+        mountPath: /config
+      - name: downloads
+        mountPath: /downloads
+      - name: movies
+        mountPath: /data/movies
+      - name: tvshows
+        mountPath: /data/tvshows
+
+# Volume definitions
+volumes:
+  - name: config
+    hostPath:
+      path: /mnt/tank/appdata/unifarr
+      type: DirectoryOrCreate
+  - name: qbittorrent-config
+    hostPath:
+      path: /mnt/tank/appdata/qbittorrent
+      type: DirectoryOrCreate
+  - name: downloads
+    hostPath:
+      path: /mnt/tank/downloads
+      type: Directory
+  - name: movies
+    hostPath:
+      path: /mnt/tank/media/movies
+      type: Directory
+  - name: tvshows
+    hostPath:
+      path: /mnt/tank/media/tvshows
+      type: Directory
+
+# Port exposures
+portals:
+  web_portal:
+    protocols:
+      - http
+    host:
+      - "$node_ip"
+    ports:
+      - "$variable-web_port"
+    path: "/"
+
+# Questions for UI configuration
+questions:
+  - variable: web_port
+    label: "Web UI Port"
+    description: "Port for Unifarr web interface"
+    schema:
+      type: int
+      default: 3000
+      min: 9000
+      max: 65535
+
+  - variable: qbit_port
+    label: "qBittorrent Web UI Port"
+    description: "Port for qBittorrent web interface"
+    schema:
+      type: int
+      default: 8080
+      min: 9000
+      max: 65535
+
+  - variable: tmdb_api_key
+    label: "TMDB API Key"
+    description: "API key from themoviedb.org"
+    schema:
+      type: string
+      required: true
+      private: true
+
+  - variable: qbit_username
+    label: "qBittorrent Username"
+    description: "Username for qBittorrent WebUI"
+    schema:
+      type: string
+      default: "admin"
+      required: true
+
+  - variable: qbit_password
+    label: "qBittorrent Password"
+    description: "Password for qBittorrent WebUI"
+    schema:
+      type: string
+      default: "adminadmin"
+      required: true
+      private: true
+
+  - variable: movies_path
+    label: "Movies Library Path"
+    description: "Path to your movies library on the host"
+    schema:
+      type: hostpath
+      required: true
+      default: "/mnt/tank/media/movies"
+
+  - variable: tvshows_path
+    label: "TV Shows Library Path"
+    description: "Path to your TV shows library on the host"
+    schema:
+      type: hostpath
+      required: true
+      default: "/mnt/tank/media/tvshows"
+
+  - variable: downloads_path
+    label: "Downloads Path"
+    description: "Path for qBittorrent downloads on the host"
+    schema:
+      type: hostpath
+      required: true
+      default: "/mnt/tank/downloads"
+
+  - variable: puid
+    label: "User ID (PUID)"
+    description: "User ID for file permissions"
+    schema:
+      type: int
+      default: 1000
+      min: 1
+      max: 65535
+
+  - variable: pgid
+    label: "Group ID (PGID)"
+    description: "Group ID for file permissions"
+    schema:
+      type: int
+      default: 1000
+      min: 1
+      max: 65535
+
+  - variable: timezone
+    label: "Timezone"
+    description: "Timezone for the application"
+    schema:
+      type: string
+      default: "UTC"

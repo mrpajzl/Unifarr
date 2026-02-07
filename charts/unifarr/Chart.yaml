@@ -1,0 +1,19 @@
+apiVersion: v2
+name: unifarr
+version: 1.0.0
+appVersion: "1.0.0"
+description: Unified media management for movies and TV shows
+type: application
+keywords:
+  - media
+  - torrent
+  - plex
+  - radarr
+  - sonarr
+home: https://github.com/mrpajzl/unifarr
+sources:
+  - https://github.com/mrpajzl/unifarr
+maintainers:
+  - name: mrpajzl
+    email: ondrej@zraly.cz
+icon: https://raw.githubusercontent.com/mrpajzl/unifarr/main/icon.png

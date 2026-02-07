@@ -1,0 +1,169 @@
+import { TMDB } from 'tmdb-ts';
+
+export interface TMDBMovie {
+  id: number;
+  title: string;
+  original_title: string;
+  release_date: string;
+  year?: number;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  genres: { id: number; name: string }[];
+  runtime: number | null;
+  status: string;
+  imdb_id?: string | null;
+}
+
+export interface TMDBTVShow {
+  id: number;
+  name: string;
+  original_name: string;
+  first_air_date: string;
+  year?: number;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  genres: { id: number; name: string }[];
+  number_of_seasons: number;
+  number_of_episodes: number;
+  status: string;
+}
+
+export class TMDBService {
+  private client: TMDB;
+  
+  constructor(apiKey: string) {
+    if (!apiKey) {
+      throw new Error('TMDB_API_KEY is required');
+    }
+    this.client = new TMDB(apiKey);
+  }
+  
+  async searchMovies(query: string, year?: number): Promise<TMDBMovie[]> {
+    try {
+      console.log('Searching TMDB movies:', { query, year });
+      const response = await this.client.search.movies({
+        query,
+        year,
+      });
+      
+      console.log('TMDB movies response:', response.results.length, 'results');
+      
+      return response.results.map(movie => ({
+        ...movie,
+        year: movie.release_date ? new Date(movie.release_date).getFullYear() : undefined,
+        genres: [],
+        runtime: null,
+        status: '',
+      }));
+    } catch (error) {
+      console.error('TMDB search movies error:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      throw error;
+    }
+  }
+  
+  async searchTVShows(query: string, year?: number): Promise<TMDBTVShow[]> {
+    try {
+      console.log('Searching TMDB TV shows:', { query, year });
+      const response = await this.client.search.tvShows({
+        query,
+        first_air_date_year: year,
+      });
+      
+      console.log('TMDB TV shows response:', response.results.length, 'results');
+      
+      return response.results.map(show => ({
+        ...show,
+        year: show.first_air_date ? new Date(show.first_air_date).getFullYear() : undefined,
+        genres: [],
+        number_of_seasons: 0,
+        number_of_episodes: 0,
+        status: '',
+      }));
+    } catch (error) {
+      console.error('TMDB search TV shows error:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      throw error;
+    }
+  }
+  
+  async getMovieDetails(id: number): Promise<TMDBMovie | null> {
+    try {
+      const movie = await this.client.movies.details(id);
+      return {
+        ...movie,
+        year: movie.release_date ? new Date(movie.release_date).getFullYear() : undefined,
+        poster_path: movie.poster_path ?? null,
+        backdrop_path: movie.backdrop_path ?? null,
+      };
+    } catch (error) {
+      console.error('TMDB get movie details error:', error);
+      return null;
+    }
+  }
+  
+  async getTVShowDetails(id: number): Promise<TMDBTVShow | null> {
+    try {
+      const show = await this.client.tvShows.details(id);
+      return {
+        ...show,
+        year: show.first_air_date ? new Date(show.first_air_date).getFullYear() : undefined,
+      };
+    } catch (error) {
+      console.error('TMDB get TV show details error:', error);
+      return null;
+    }
+  }
+  
+  async searchMulti(query: string): Promise<Array<TMDBMovie | TMDBTVShow>> {
+    try {
+      console.log('Searching TMDB multi:', { query });
+      const response = await this.client.search.multi({ query });
+      
+      const results = response.results
+        .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+        .map(item => {
+          if (item.media_type === 'movie') {
+            return {
+              ...item,
+              year: item.release_date ? new Date(item.release_date).getFullYear() : undefined,
+              genres: [],
+              runtime: null,
+              status: '',
+            } as TMDBMovie;
+          } else {
+            return {
+              ...item,
+              year: item.first_air_date ? new Date(item.first_air_date).getFullYear() : undefined,
+              genres: [],
+              number_of_seasons: 0,
+              number_of_episodes: 0,
+              status: '',
+            } as TMDBTVShow;
+          }
+        });
+      
+      console.log('TMDB multi response:', results.length, 'results');
+      return results;
+    } catch (error) {
+      console.error('TMDB multi search error:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      throw error;
+    }
+  }
+}
