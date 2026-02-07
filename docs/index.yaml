@@ -3,7 +3,30 @@ entries:
   unifarr:
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2026-02-07T23:10:57.491976+01:00"
+    created: "2026-02-07T23:24:56.750747+01:00"
+    description: Unified media management for movies and TV shows
+    digest: aeaf7de410fbd588822834f4c3319f90d77916e3aa3836595f95bdea0bc26a7e
+    home: https://github.com/mrpajzl/unifarr
+    icon: https://raw.githubusercontent.com/mrpajzl/unifarr/main/icon.png
+    keywords:
+    - media
+    - torrent
+    - plex
+    - radarr
+    - sonarr
+    maintainers:
+    - email: ondrej@zraly.cz
+      name: mrpajzl
+    name: unifarr
+    sources:
+    - https://github.com/mrpajzl/unifarr
+    type: application
+    urls:
+    - https://mrpajzl.github.io/Unifarr/unifarr-1.0.1.tgz
+    version: 1.0.1
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-07T23:24:56.750511+01:00"
     description: Unified media management for movies and TV shows
     digest: a2b0df625293432ef8d4936fab712838b03ea6cb21ff510f7acf62fd074bcf5a
     home: https://github.com/mrpajzl/unifarr
@@ -22,6 +45,6 @@ entries:
     - https://github.com/mrpajzl/unifarr
     type: application
     urls:
-    - https://mrpajzl.github.io/unifarr/unifarr-1.0.0.tgz
+    - https://mrpajzl.github.io/Unifarr/unifarr-1.0.0.tgz
     version: 1.0.0
-generated: "2026-02-07T23:10:57.491247+01:00"
+generated: "2026-02-07T23:24:56.749842+01:00"

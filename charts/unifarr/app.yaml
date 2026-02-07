@@ -1,0 +1,39 @@
+name: unifarr
+version: 1.0.0
+app_version: 1.0.0
+title: Unifarr
+description: |
+  Unified media management for movies and TV shows.
+  
+  **Features:**
+  - 🎬 Movie & TV show library management
+  - 📺 Episode monitoring with auto-download
+  - 🔍 Multi-source search (torrents, Webshare)
+  - 🎯 Smart matching with diacritics support
+  - 📝 Template-based search per show
+  - 🔄 Automatic file organization
+  
+  **What it does:**
+  - Monitors your media folders
+  - Matches files to TMDB metadata
+  - Tracks TV show episodes
+  - Auto-downloads new episodes
+  - Beautiful web UI
+  
+home: https://github.com/mrpajzl/Unifarr
+sources:
+  - https://github.com/mrpajzl/Unifarr
+icon: https://raw.githubusercontent.com/mrpajzl/Unifarr/main/icon.svg
+keywords:
+  - media
+  - movies
+  - tv-shows
+  - plex
+  - jellyfin
+  - torrent
+  - automation
+categories:
+  - media
+maintainers:
+  - name: mrpajzl
+    email: ondrej@zraly.eu

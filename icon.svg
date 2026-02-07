@@ -1,0 +1,26 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="32" fill="#6366f1"/>
+  <rect x="48" y="48" width="160" height="160" rx="8" fill="#4f46e5"/>
+  
+  <!-- Film strip holes -->
+  <rect x="56" y="64" width="16" height="16" rx="4" fill="#818cf8"/>
+  <rect x="56" y="96" width="16" height="16" rx="4" fill="#818cf8"/>
+  <rect x="56" y="128" width="16" height="16" rx="4" fill="#818cf8"/>
+  <rect x="56" y="160" width="16" height="16" rx="4" fill="#818cf8"/>
+  
+  <rect x="184" y="64" width="16" height="16" rx="4" fill="#818cf8"/>
+  <rect x="184" y="96" width="16" height="16" rx="4" fill="#818cf8"/>
+  <rect x="184" y="128" width="16" height="16" rx="4" fill="#818cf8"/>
+  <rect x="184" y="160" width="16" height="16" rx="4" fill="#818cf8"/>
+  
+  <!-- Center frames -->
+  <rect x="88" y="72" width="80" height="56" rx="4" fill="#c7d2fe" opacity="0.9"/>
+  <rect x="88" y="144" width="80" height="56" rx="4" fill="#c7d2fe" opacity="0.9"/>
+  
+  <!-- Play symbol -->
+  <path d="M116 104L140 120L116 136V104Z" fill="#4f46e5"/>
+  
+  <!-- Lines -->
+  <line x1="80" y1="60" x2="176" y1="60" stroke="#818cf8" stroke-width="2"/>
+  <line x1="80" y1="196" x2="176" y1="196" stroke="#818cf8" stroke-width="2"/>
+</svg>
