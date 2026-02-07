@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    image: ghcr.io/mrpajzl/unifarr/backend:latest
+    image: ghcr.io/mrpajzl/unifarr/backend:main
     container_name: unifarr-backend
     restart: unless-stopped
     ports:
@@ -24,7 +24,7 @@ services:
       - unifarr
 
   frontend:
-    image: ghcr.io/mrpajzl/unifarr/frontend:latest
+    image: ghcr.io/mrpajzl/unifarr/frontend:main
     container_name: unifarr-frontend
     restart: unless-stopped
     ports:
