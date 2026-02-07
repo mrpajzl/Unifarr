@@ -1,0 +1,77 @@
+name: Update Helm Chart
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  update-chart:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+
+      - name: Get version from commit
+        id: version
+        run: |
+          # Extract version from Chart.yaml or use timestamp
+          CHART_VERSION=$(grep '^version:' charts/unifarr/Chart.yaml | awk '{print $2}')
+          
+          # Increment patch version
+          MAJOR=$(echo $CHART_VERSION | cut -d. -f1)
+          MINOR=$(echo $CHART_VERSION | cut -d. -f2)
+          PATCH=$(echo $CHART_VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          
+          echo "old_version=$CHART_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Chart version
+        run: |
+          sed -i "s/version: ${{ steps.version.outputs.old_version }}/version: ${{ steps.version.outputs.new_version }}/" charts/unifarr/Chart.yaml
+          
+      - name: Package Helm chart
+        run: |
+          mkdir -p /tmp/charts
+          helm package charts/unifarr -d /tmp/charts
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update Helm repository
+        run: |
+          cp /tmp/charts/*.tgz gh-pages/
+          helm repo index gh-pages/ --url https://mrpajzl.github.io/Unifarr --merge gh-pages/index.yaml
+
+      - name: Commit and push gh-pages
+        working-directory: gh-pages
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Update Helm chart to v${{ steps.version.outputs.new_version }}" || exit 0
+          git push
+
+      - name: Commit version bump to main
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add charts/unifarr/Chart.yaml
+          git commit -m "chore: bump chart version to ${{ steps.version.outputs.new_version }}" || exit 0
+          git push
