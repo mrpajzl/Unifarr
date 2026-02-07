@@ -1,0 +1,31 @@
+{{- if .Values.backend.persistence.data.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "unifarr.fullname" . }}-backend-data
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "unifarr.labels" . | nindent 4 }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.data.size }}
+{{- end }}
+---
+{{- if .Values.backend.persistence.downloads.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "unifarr.fullname" . }}-backend-downloads
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "unifarr.labels" . | nindent 4 }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.downloads.size }}
+{{- end }}

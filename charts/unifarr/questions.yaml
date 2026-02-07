@@ -1,0 +1,111 @@
+groups:
+  - name: "Configuration"
+    description: "Unifarr application configuration"
+  - name: "Storage"
+    description: "Configure storage for media and data"
+  - name: "Networking"
+    description: "Networking configuration"
+
+questions:
+  # Media Paths
+  - variable: mediaPaths.movies.hostPath
+    label: "Movies Path"
+    description: "Path to your movies library on the host"
+    group: "Storage"
+    schema:
+      type: string
+      default: "/mnt/storage/media/movies"
+      required: true
+
+  - variable: mediaPaths.tvshows.hostPath
+    label: "TV Shows Path"
+    description: "Path to your TV shows library on the host"
+    group: "Storage"
+    schema:
+      type: string
+      default: "/mnt/storage/media/tvshows"
+      required: true
+
+  - variable: mediaPaths.downloads.hostPath
+    label: "Downloads Path"
+    description: "Path to your downloads folder on the host"
+    group: "Storage"
+    schema:
+      type: string
+      default: "/mnt/storage/media/downloads"
+      required: true
+
+  # Backend Data Persistence
+  - variable: backend.persistence.data.enabled
+    label: "Enable Data Persistence"
+    description: "Store database and configuration persistently"
+    group: "Storage"
+    schema:
+      type: boolean
+      default: true
+
+  - variable: backend.persistence.data.size
+    label: "Data Volume Size"
+    description: "Size of the data volume"
+    group: "Storage"
+    schema:
+      type: string
+      default: "10Gi"
+      show_if: [["backend.persistence.data.enabled", "=", true]]
+
+  # Backend Downloads Persistence
+  - variable: backend.persistence.downloads.enabled
+    label: "Enable Downloads Persistence"
+    description: "Store torrent downloads persistently"
+    group: "Storage"
+    schema:
+      type: boolean
+      default: true
+
+  - variable: backend.persistence.downloads.size
+    label: "Downloads Volume Size"
+    description: "Size of the downloads volume"
+    group: "Storage"
+    schema:
+      type: string
+      default: "100Gi"
+      show_if: [["backend.persistence.downloads.enabled", "=", true]]
+
+  # Networking
+  - variable: service.backend.port
+    label: "Backend Port"
+    description: "Port for the backend API"
+    group: "Networking"
+    schema:
+      type: int
+      default: 3002
+      required: true
+
+  - variable: service.frontend.port
+    label: "Frontend Port"
+    description: "Port for the web interface"
+    group: "Networking"
+    schema:
+      type: int
+      default: 3000
+      required: true
+
+  # Backend Image
+  - variable: backend.image.tag
+    label: "Backend Image Tag"
+    description: "Docker image tag for backend (main/latest)"
+    group: "Configuration"
+    schema:
+      type: string
+      default: "main"
+      required: true
+
+  # Frontend Image
+  - variable: frontend.image.tag
+    label: "Frontend Image Tag"
+    description: "Docker image tag for frontend (main/latest)"
+    group: "Configuration"
+    schema:
+      type: string
+      default: "main"
+      required: true

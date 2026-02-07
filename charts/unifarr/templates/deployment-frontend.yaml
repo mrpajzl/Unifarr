@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "unifarr.fullname" . }}-frontend
+  labels:
+    app.kubernetes.io/component: frontend
+    {{- include "unifarr.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+      {{- include "unifarr.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: frontend
+        {{- include "unifarr.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: frontend
+        image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.frontend.port }}
+          protocol: TCP
+        env:
+        - name: NUXT_PUBLIC_API_BASE
+          value: {{ .Values.frontend.env.NUXT_PUBLIC_API_BASE | quote }}
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 10 }}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unifarr Helm Chart Repository</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        h1 { color: #2c3e50; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .logo { font-size: 48px; }
+    </style>
+</head>
+<body>
+    <div class="logo">📺</div>
+    <h1>Unifarr Helm Chart Repository</h1>
+    <p>Unified media management for movies and TV shows.</p>
+
+    <h2>Quick Start</h2>
+    <pre><code># Add the repository
+helm repo add unifarr https://mrpajzl.github.io/unifarr
+helm repo update
+
+# Install Unifarr
+helm install unifarr unifarr/unifarr \
+  --set mediaPaths.movies.hostPath=/mnt/storage/media/movies \
+  --set mediaPaths.tvshows.hostPath=/mnt/storage/media/tvshows \
+  --set mediaPaths.downloads.hostPath=/mnt/storage/media/downloads</code></pre>
+
+    <h2>For TrueNAS SCALE</h2>
+    <ol>
+        <li>Go to <strong>Apps</strong> → <strong>Manage Catalogs</strong></li>
+        <li>Click <strong>Add Catalog</strong></li>
+        <li>Fill in:
+            <ul>
+                <li><strong>Name:</strong> unifarr</li>
+                <li><strong>Repository:</strong> https://github.com/mrpajzl/unifarr</li>
+                <li><strong>Preferred Trains:</strong> charts</li>
+                <li><strong>Branch:</strong> gh-pages</li>
+            </ul>
+        </li>
+        <li>Save and wait for catalog to sync</li>
+        <li>Install Unifarr from the catalog</li>
+    </ol>
+
+    <h2>Links</h2>
+    <ul>
+        <li><a href="https://github.com/mrpajzl/unifarr">GitHub Repository</a></li>
+        <li><a href="./index.yaml">Chart Index</a></li>
+        <li><a href="./unifarr-1.0.0.tgz">Download Chart</a></li>
+    </ul>
+</body>
+</html>
