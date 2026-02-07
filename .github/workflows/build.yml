@@ -9,8 +9,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ghcr.io/${{ github.repository }}/backend
-  IMAGE_FRONTEND: ghcr.io/${{ github.repository }}/frontend
+  IMAGE_BACKEND: ghcr.io/mrpajzl/unifarr/backend
+  IMAGE_FRONTEND: ghcr.io/mrpajzl/unifarr/frontend
 
 jobs:
   build-backend:
