@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  backend:
+    image: ghcr.io/mrpajzl/unifarr/backend:main
+    container_name: unifarr-backend
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: production
+      MOVIES_PATH: /data/movies
+      TV_PATH: /data/tvshows
+      DOWNLOADS_PATH: /data/downloads
+    volumes:
+      # Database & config (TrueNAS will create these)
+      - unifarr-data:/app/data
+      - unifarr-downloads:/app/downloads
+      
+      # Mount your media folders (CHANGE THESE!)
+      - /mnt/storage/media/movies:/data/movies
+      - /mnt/storage/media/tvshows:/data/tvshows
+      - /mnt/storage/media/downloads:/data/downloads
+
+  frontend:
+    image: ghcr.io/mrpajzl/unifarr/frontend:main
+    container_name: unifarr-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      NUXT_PUBLIC_API_BASE: http://10.0.0.141:3002
+    depends_on:
+      - backend
+
+volumes:
+  unifarr-data:
+  unifarr-downloads:
