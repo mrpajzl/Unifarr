@@ -122,7 +122,7 @@ export class FolderScanner {
               parsedTitle: parsed.title,
               parsedYear: parsed.year,
               parsedQuality: videoFiles.length > 0 ? this.extractQuality(videoFiles[0]) : undefined,
-              matched: 0,
+              matched: false,
               scannedAt: new Date(),
             });
             result.added++;
@@ -233,7 +233,7 @@ export class FolderScanner {
                   parsedQuality: fileParsed.quality || this.extractQuality(filename),
                   parsedCodec: fileParsed.codec,
                   parsedSource: fileParsed.source,
-                  matched: 0,
+                  matched: false,
                   scannedAt: new Date(),
                 });
                 result.added++;

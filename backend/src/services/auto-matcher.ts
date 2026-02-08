@@ -263,7 +263,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
         // Match ALL unmatched episodes in the same show folder
         const allUnmatched = await db.query.files.findMany({
           where: (files, { and, eq, isNotNull }) => and(
-            eq(files.matched, 0),
+            eq(files.matched, false),
             isNotNull(files.parsedSeason)
           ),
         });
@@ -316,7 +316,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
  */
 export async function autoMatchAll(): Promise<{ matched: number; skipped: number }> {
   const unmatched = await db.query.files.findMany({
-    where: eq(files.matched, 0),
+    where: eq(files.matched, false),
   });
   
   let matched = 0;

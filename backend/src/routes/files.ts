@@ -18,7 +18,7 @@ app.get('/', async (c) => {
 // Get unmatched folders (TV shows grouped by series)
 app.get('/unmatched', async (c) => {
   const unmatched = await db.query.files.findMany({
-    where: eq(files.matched, 0),
+    where: eq(files.matched, false),
   });
   
   // Group TV shows by normalized title (removes diacritics, articles, special chars)

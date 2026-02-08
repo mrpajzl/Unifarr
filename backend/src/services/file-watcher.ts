@@ -38,7 +38,7 @@ const debouncedScan = (path: string, type: 'movies' | 'tv') => {
       if (result.added > 0) {
         console.log('🎯 Auto-matching new files...');
         const unmatched = await db.query.files.findMany({
-          where: eq(files.matched, 0),
+          where: eq(files.matched, false),
         });
         
         let matched = 0;

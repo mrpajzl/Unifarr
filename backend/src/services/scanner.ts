@@ -74,7 +74,7 @@ export class LibraryScanner {
               parsedEdition: parsed.edition,
               parsedCodec: parsed.codec,
               parsedSource: parsed.source,
-              matched: 0,
+              matched: false,
               scannedAt: new Date(),
             });
             result.added++;
@@ -94,7 +94,7 @@ export class LibraryScanner {
   
   async getUnmatchedFiles() {
     return await db.query.files.findMany({
-      where: eq(files.matched, 0),
+      where: eq(files.matched, false),
     });
   }
 }

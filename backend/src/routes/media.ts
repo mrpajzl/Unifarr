@@ -113,7 +113,7 @@ app.post('/', async (c) => {
         parsedTitle: title,
         parsedYear: year,
         size: 0,
-        matched: 1,
+        matched: true,
         mediaItemId: inserted.id,
         matchConfidence: 1.0,
         scannedAt: new Date(),
@@ -150,7 +150,7 @@ app.post('/:id/match', async (c) => {
   await db.update(files)
     .set({
       mediaItemId: mediaId,
-      matched: 1,
+      matched: true,
       matchConfidence: confidence,
     })
     .where(eq(files.id, fileId));
@@ -183,7 +183,7 @@ app.post('/:id/match', async (c) => {
     const allUnmatched = await db.query.files.findMany({
       where: (files, { and, eq, ne, isNotNull }) => and(
         ne(files.id, fileId), // Not the same file
-        eq(files.matched, 0), // Not already matched
+        eq(files.matched, false), // Not already matched
         isNotNull(files.parsedSeason)
       ),
     });
@@ -212,7 +212,7 @@ app.post('/:id/match', async (c) => {
         await db.update(files)
           .set({
             mediaItemId: mediaId,
-            matched: 1,
+            matched: true,
             matchConfidence: confidence,
           })
           .where(eq(files.id, episode.id));
@@ -244,7 +244,7 @@ app.delete('/:id', async (c) => {
     // Unlink each file individually
     for (const file of linkedFiles) {
       await db.update(files)
-        .set({ mediaItemId: null, matched: 0 })
+        .set({ mediaItemId: null, matched: false })
         .where(eq(files.id, file.id));
     }
     
@@ -345,7 +345,7 @@ app.get('/:id/files', async (c) => {
           filename,
           size: Number(stats.size),
           mediaItemId: id,
-          matched: 1,
+          matched: true,
           matchConfidence: 1.0,
           mediaInfo: mediaInfo ? {
             ...mediaInfo,
@@ -417,7 +417,7 @@ app.patch('/:id/monitored', async (c) => {
   
   // Update monitored status
   await db.update(mediaItems)
-    .set({ monitored: monitored ? 1 : 0 })
+    .set({ monitored: monitored })
     .where(eq(mediaItems.id, id));
   
   console.log(`📺 ${monitored ? 'Started' : 'Stopped'} monitoring: ${media.title}`);

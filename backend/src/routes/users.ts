@@ -57,7 +57,7 @@ router.post('/:id/approve', authenticate, requireAdmin, async (c) => {
 
     // Approve user
     await db.update(users)
-      .set({ approved: 1 })
+      .set({ approved: true })
       .where(eq(users.id, userId));
 
     return c.json({ 

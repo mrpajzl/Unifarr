@@ -42,7 +42,7 @@ router.post('/register', async (c) => {
     const [userCountResult] = await db.select({ count: count() }).from(users);
     const userCount = userCountResult.count;
     const role = userCount === 0 ? 'admin' : 'user';
-    const approved = userCount === 0 ? 1 : 0; // First user auto-approved
+    const approved = userCount === 0; // First user auto-approved
 
     // Hash password
     const passwordHash = await hashPassword(password);
