@@ -150,7 +150,9 @@ export class FolderScanner {
   }
   
   /**
-   * Scan TV shows directory - scan individual episode files
+   * Scan TV shows directory - folder-based approach
+   * Each top-level folder = one TV show (creates mediaItems entry)
+   * All episode files inside are linked to that show
    */
   async scanTVShows(tvPath: string): Promise<FolderScanResult> {
     const result: FolderScanResult = {
@@ -181,6 +183,23 @@ export class FolderScanner {
           // Parse folder name for show title
           const folderParsed = parseMediaFolderName(entry.name);
           
+          // Find or create mediaItem for this TV show
+          let mediaItem = await db.query.mediaItems.findFirst({
+            where: eq(mediaItems.libraryPath, showFolderPath),
+          });
+          
+          if (!mediaItem) {
+            // Create new TV show entry
+            const [newItem] = await db.insert(mediaItems).values({
+              type: 'tv',
+              title: folderParsed.title,
+              year: folderParsed.year,
+              libraryPath: showFolderPath,
+              monitored: false,
+            }).returning();
+            mediaItem = newItem;
+          }
+          
           // Scan each video file individually
           for (const videoFilePath of videoFiles) {
             result.scanned++;
@@ -194,9 +213,9 @@ export class FolderScanner {
               const stats = await stat(videoFilePath);
               const fileSize = Number(stats.size);
               
-              // Use parsed episode info if available, otherwise fall back to folder name
-              const title = fileParsed.title || folderParsed.title;
-              const year = fileParsed.year || folderParsed.year;
+              // Use folder title for show name (not episode filename)
+              const title = folderParsed.title;
+              const year = folderParsed.year;
               
               // Check if file already exists in DB by path
               const existing = await db.query.files.findFirst({
@@ -208,13 +227,14 @@ export class FolderScanner {
                 await db.update(files)
                   .set({
                     filename: filename,
-                    parsedTitle: title,
+                    parsedTitle: title, // Always use folder name
                     parsedYear: year,
                     parsedSeason: fileParsed.season,
                     parsedEpisode: fileParsed.episode,
                     parsedQuality: fileParsed.quality || this.extractQuality(filename),
                     parsedCodec: fileParsed.codec,
                     parsedSource: fileParsed.source,
+                    mediaItemId: mediaItem.id, // Link to TV show
                     size: fileSize,
                     scannedAt: new Date(),
                   })
@@ -226,13 +246,14 @@ export class FolderScanner {
                   path: videoFilePath,
                   filename: filename,
                   size: fileSize,
-                  parsedTitle: title,
+                  parsedTitle: title, // Always use folder name
                   parsedYear: year,
                   parsedSeason: fileParsed.season,
                   parsedEpisode: fileParsed.episode,
                   parsedQuality: fileParsed.quality || this.extractQuality(filename),
                   parsedCodec: fileParsed.codec,
                   parsedSource: fileParsed.source,
+                  mediaItemId: mediaItem.id, // Link to TV show
                   matched: false,
                   scannedAt: new Date(),
                 });
