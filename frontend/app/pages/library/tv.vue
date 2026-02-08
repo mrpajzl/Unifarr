@@ -54,6 +54,14 @@
           <option value="Canceled">Canceled</option>
           <option value="In Production">In Production</option>
         </select>
+        <label class="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-750 transition-colors">
+          <input 
+            type="checkbox" 
+            v-model="showOnlyWithoutTMDB" 
+            class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500 focus:ring-offset-0"
+          />
+          <span class="text-sm text-gray-300">Without TMDB ID</span>
+        </label>
       </template>
     </LibraryToolbar>
 
@@ -183,6 +191,7 @@ const sortOrder = ref<'asc' | 'desc'>('asc');
 const genreFilter = ref('');
 const yearFilter = ref('');
 const statusFilter = ref('');
+const showOnlyWithoutTMDB = ref(false);
 
 // Fetch
 const { data: media, pending, error, refresh } = await useAsyncData(
@@ -221,6 +230,10 @@ const filteredShows = computed(() => {
 
   if (statusFilter.value) {
     filtered = filtered.filter((m) => m.status === statusFilter.value);
+  }
+
+  if (showOnlyWithoutTMDB.value) {
+    filtered = filtered.filter((m) => !m.tmdbId);
   }
 
   const dir = sortOrder.value === 'asc' ? 1 : -1;

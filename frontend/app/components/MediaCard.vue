@@ -47,6 +47,25 @@
           {{ tmdb.formatRuntime(media.runtime) }}
         </span>
       </div>
+      
+      <!-- Search Media button for items without TMDB ID -->
+      <button
+        v-if="!media.tmdbId"
+        @click.prevent="navigateTo(`/media/${media.id}`)"
+        class="mt-2 w-full btn btn-primary btn-sm flex items-center justify-center gap-1.5"
+      >
+        <Icon name="mdi:magnify" class="w-4 h-4" />
+        <span>Search Media</span>
+      </button>
+      
+      <!-- Warning badge for items without TMDB ID -->
+      <div
+        v-if="!media.tmdbId"
+        class="mt-2 flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded"
+      >
+        <Icon name="mdi:alert-circle-outline" class="w-3.5 h-3.5" />
+        <span>Not identified</span>
+      </div>
     </div>
   </NuxtLink>
 </template>

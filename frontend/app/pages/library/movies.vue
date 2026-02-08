@@ -51,6 +51,14 @@
           <option value="">All Qualities</option>
           <option v-for="q in availableQualities" :key="q" :value="q">{{ q }}</option>
         </select>
+        <label class="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-750 transition-colors">
+          <input 
+            type="checkbox" 
+            v-model="showOnlyWithoutTMDB" 
+            class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500 focus:ring-offset-0"
+          />
+          <span class="text-sm text-gray-300">Without TMDB ID</span>
+        </label>
       </template>
     </LibraryToolbar>
 
@@ -172,6 +180,7 @@ const sortOrder = ref<'asc' | 'desc'>('asc');
 const genreFilter = ref('');
 const yearFilter = ref('');
 const qualityFilter = ref('');
+const showOnlyWithoutTMDB = ref(false);
 
 // Fetch data
 const { data: media, pending, error, refresh } = await useAsyncData(
@@ -237,6 +246,10 @@ const filteredMovies = computed(() => {
       const mFiles = filesByMedia.value.get(m.id);
       return mFiles?.some((f) => f.parsedQuality === qualityFilter.value);
     });
+  }
+
+  if (showOnlyWithoutTMDB.value) {
+    filtered = filtered.filter((m) => !m.tmdbId);
   }
 
   const dir = sortOrder.value === 'asc' ? 1 : -1;
