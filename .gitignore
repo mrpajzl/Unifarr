@@ -35,3 +35,5 @@ unifarr-deploy.tar.gz
 
 # Sensitive
 backend/settings.json
+*.sqlite
+*.sqlite3
