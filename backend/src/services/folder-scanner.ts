@@ -235,6 +235,7 @@ export class FolderScanner {
                     parsedCodec: fileParsed.codec,
                     parsedSource: fileParsed.source,
                     mediaItemId: mediaItem.id, // Link to TV show
+                    matched: true, // TV show episodes are matched to their show
                     size: fileSize,
                     scannedAt: new Date(),
                   })
@@ -254,7 +255,7 @@ export class FolderScanner {
                   parsedCodec: fileParsed.codec,
                   parsedSource: fileParsed.source,
                   mediaItemId: mediaItem.id, // Link to TV show
-                  matched: false,
+                  matched: true, // TV show episodes are matched to their show
                   scannedAt: new Date(),
                 });
                 result.added++;
