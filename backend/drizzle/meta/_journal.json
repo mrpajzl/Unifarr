@@ -1,12 +1,12 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1770472229427,
-      "tag": "0000_material_mother_askani",
+      "version": "7",
+      "when": 1770554775640,
+      "tag": "0000_parallel_korath",
       "breakpoints": true
     }
   ]

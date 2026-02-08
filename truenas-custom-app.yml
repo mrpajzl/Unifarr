@@ -1,38 +1,44 @@
-version: "3.8"
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: unifarr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: unifarr
+      POSTGRES_USER: unifarr
+      POSTGRES_PASSWORD: unifarr_password_change_me
+    volumes:
+      - /mnt/HDDs/media/unifarr/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unifarr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     image: ghcr.io/mrpajzl/unifarr/backend:main
     container_name: unifarr-backend
     restart: unless-stopped
     ports:
-      - "3002:3000"
+      - "32302:3000"
     environment:
       NODE_ENV: production
-      MOVIES_PATH: /data/movies
-      TV_PATH: /data/tvshows
-      DOWNLOADS_PATH: /data/downloads
+      # PostgreSQL connection
+      DATABASE_URL: postgresql://unifarr:unifarr_password_change_me@postgres:5432/unifarr
     volumes:
-      # Database & config (TrueNAS will create these)
-      - unifarr-data:/app/data
-      - unifarr-downloads:/app/downloads
-      
-      # Mount your media folders (CHANGE THESE!)
-      - /mnt/storage/media/movies:/data/movies
-      - /mnt/storage/media/tvshows:/data/tvshows
-      - /mnt/storage/media/downloads:/data/downloads
+      - /mnt/HDDs/media/unifarr/data:/app/data
+      - /mnt/HDDs/media:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     image: ghcr.io/mrpajzl/unifarr/frontend:main
     container_name: unifarr-frontend
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "32301:3000"
     environment:
-      NUXT_PUBLIC_API_BASE: http://10.0.0.141:3002
+      NUXT_PUBLIC_API_BASE: http://10.0.0.141:32302
     depends_on:
       - backend
-
-volumes:
-  unifarr-data:
-  unifarr-downloads:

@@ -1,29 +1,33 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { join, dirname } from 'path';
-import { mkdirSync, existsSync } from 'fs';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import postgres from 'postgres';
+import { join } from 'path';
 import * as schema from './schema';
 
-const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'unifarr.db');
+// Get database URL from environment (fallback to SQLite for local dev)
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://unifarr:unifarr@localhost:5432/unifarr';
 
-// Ensure directory exists
-const dbDir = dirname(dbPath);
-if (!existsSync(dbDir)) {
-  mkdirSync(dbDir, { recursive: true });
-}
+console.log('🔌 Connecting to PostgreSQL...');
 
-const sqlite = new Database(dbPath);
-sqlite.pragma('journal_mode = WAL');
+// Create postgres client
+const queryClient = postgres(databaseUrl);
 
-export const db = drizzle(sqlite, { schema });
+// Create drizzle instance
+export const db = drizzle(queryClient, { schema });
 
 // Auto-run migrations on startup
-try {
-  migrate(db, { migrationsFolder: join(process.cwd(), 'drizzle') });
-  console.log('✅ Database migrations applied');
-} catch (error) {
-  console.error('❌ Failed to apply migrations:', error);
+async function runMigrations() {
+  try {
+    console.log('🔄 Running database migrations...');
+    await migrate(db, { migrationsFolder: join(process.cwd(), 'drizzle') });
+    console.log('✅ Database migrations applied');
+  } catch (error) {
+    console.error('❌ Failed to apply migrations:', error);
+    // Don't exit - let the app try to run anyway (migrations might be up to date)
+  }
 }
+
+// Run migrations asynchronously
+runMigrations();
 
 export { schema };
