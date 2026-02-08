@@ -183,13 +183,22 @@ export class FolderScanner {
           // Parse folder name for show title
           const folderParsed = parseMediaFolderName(entry.name);
           
-          // Check if mediaItem already exists (created via Search Media + TMDB match)
+          // Find or create mediaItem for this TV show (even without TMDB ID)
           let mediaItem = await db.query.mediaItems.findFirst({
             where: eq(mediaItems.libraryPath, showFolderPath),
           });
           
-          // Don't auto-create mediaItems - let user match via Search Media first
-          // mediaItem will be null for unidentified shows
+          if (!mediaItem) {
+            // Create new TV show entry (without TMDB ID - user can add it later)
+            const [newItem] = await db.insert(mediaItems).values({
+              type: 'tv',
+              title: folderParsed.title,
+              year: folderParsed.year,
+              libraryPath: showFolderPath,
+              monitored: false,
+            }).returning();
+            mediaItem = newItem;
+          }
           
           // Scan each video file individually
           for (const videoFilePath of videoFiles) {
@@ -225,8 +234,8 @@ export class FolderScanner {
                     parsedQuality: fileParsed.quality || this.extractQuality(filename),
                     parsedCodec: fileParsed.codec,
                     parsedSource: fileParsed.source,
-                    mediaItemId: mediaItem?.id, // Link to TV show if exists
-                    matched: !!mediaItem, // Only matched if linked to a media item
+                    mediaItemId: mediaItem.id, // Link to TV show
+                    matched: true, // Matched to media item (even without TMDB ID)
                     size: fileSize,
                     scannedAt: new Date(),
                   })
@@ -245,8 +254,8 @@ export class FolderScanner {
                   parsedQuality: fileParsed.quality || this.extractQuality(filename),
                   parsedCodec: fileParsed.codec,
                   parsedSource: fileParsed.source,
-                  mediaItemId: mediaItem?.id, // Link to TV show if exists
-                  matched: !!mediaItem, // Only matched if linked to a media item
+                  mediaItemId: mediaItem.id, // Link to TV show
+                  matched: true, // Matched to media item (even without TMDB ID)
                   scannedAt: new Date(),
                 });
                 result.added++;
