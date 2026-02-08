@@ -1,15 +1,16 @@
 import { glob } from 'glob';
-import { stat } from 'fs/promises';
-import { parseMediaPath } from '../lib/parser';
+import { stat, readdir } from 'fs/promises';
+import { parseMediaPath, parseMediaFolderName } from '../lib/parser';
 import { db } from '../db';
-import { files } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { files, mediaItems } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export interface ScanResult {
   scanned: number;
   added: number;
   updated: number;
   errors: string[];
+  tvShows?: number;
 }
 
 export class LibraryScanner {
@@ -18,6 +19,125 @@ export class LibraryScanner {
     '.m4v', '.mpg', '.mpeg', '.m2ts', '.ts'
   ];
   
+  /**
+   * Scan TV shows directory - folder-based approach
+   * Each top-level folder = one TV show
+   */
+  async scanTVShows(tvPath: string): Promise<ScanResult> {
+    const result: ScanResult = {
+      scanned: 0,
+      added: 0,
+      updated: 0,
+      errors: [],
+      tvShows: 0,
+    };
+    
+    try {
+      // Get all top-level folders (each = one TV show)
+      const entries = await readdir(tvPath, { withFileTypes: true });
+      const showFolders = entries.filter(e => e.isDirectory());
+      
+      for (const showFolder of showFolders) {
+        const showPath = `${tvPath}/${showFolder.name}`;
+        const parsed = parseMediaFolderName(showFolder.name);
+        
+        try {
+          // Find or create mediaItem for this TV show
+          let mediaItem = await db.query.mediaItems.findFirst({
+            where: and(
+              eq(mediaItems.type, 'tv'),
+              eq(mediaItems.libraryPath, showPath)
+            ),
+          });
+          
+          if (!mediaItem) {
+            // Create new TV show entry
+            const [newItem] = await db.insert(mediaItems).values({
+              type: 'tv',
+              title: parsed.title,
+              year: parsed.year,
+              libraryPath: showPath,
+              monitored: false,
+            }).returning();
+            mediaItem = newItem;
+            result.tvShows!++;
+          }
+          
+          // Now scan all episodes in this show folder
+          const pattern = `${showPath}/**/*{${this.supportedExtensions.join(',')}}`;
+          const filePaths = await glob(pattern, { nodir: true, absolute: true });
+          
+          for (const filePath of filePaths) {
+            result.scanned++;
+            
+            try {
+              const fileStats = await stat(filePath);
+              const parsedFile = parseMediaPath(filePath);
+              
+              // Check if file already exists in DB
+              const existing = await db.query.files.findFirst({
+                where: eq(files.path, filePath),
+              });
+              
+              if (existing) {
+                // Update existing record
+                await db.update(files)
+                  .set({
+                    parsedTitle: parsed.title, // Use show title from folder
+                    parsedYear: parsed.year,
+                    parsedSeason: parsedFile.season,
+                    parsedEpisode: parsedFile.episode,
+                    parsedQuality: parsedFile.quality,
+                    parsedEdition: parsedFile.edition,
+                    parsedCodec: parsedFile.codec,
+                    parsedSource: parsedFile.source,
+                    mediaItemId: mediaItem.id,
+                    size: Number(fileStats.size),
+                    scannedAt: new Date(),
+                  })
+                  .where(eq(files.id, existing.id));
+                result.updated++;
+              } else {
+                // Insert new record
+                await db.insert(files).values({
+                  path: filePath,
+                  filename: filePath.split('/').pop() || '',
+                  size: Number(fileStats.size),
+                  parsedTitle: parsed.title, // Use show title from folder
+                  parsedYear: parsed.year,
+                  parsedSeason: parsedFile.season,
+                  parsedEpisode: parsedFile.episode,
+                  parsedQuality: parsedFile.quality,
+                  parsedEdition: parsedFile.edition,
+                  parsedCodec: parsedFile.codec,
+                  parsedSource: parsedFile.source,
+                  mediaItemId: mediaItem.id,
+                  matched: false,
+                  scannedAt: new Date(),
+                });
+                result.added++;
+              }
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              result.errors.push(`${filePath}: ${errorMsg}`);
+            }
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          result.errors.push(`TV show ${showFolder.name}: ${errorMsg}`);
+        }
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      result.errors.push(`TV scan error: ${errorMsg}`);
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Scan movies directory - file-based approach (existing logic)
+   */
   async scanDirectory(path: string): Promise<ScanResult> {
     const result: ScanResult = {
       scanned: 0,
@@ -107,12 +227,13 @@ export async function scanLibrary(): Promise<ScanResult> {
   const tvshowsPath = process.env.TVSHOWS_PATH || '/data/tvshows';
   
   const moviesResult = await scanner.scanDirectory(moviesPath);
-  const tvResult = await scanner.scanDirectory(tvshowsPath);
+  const tvResult = await scanner.scanTVShows(tvshowsPath);
   
   return {
     scanned: moviesResult.scanned + tvResult.scanned,
     added: moviesResult.added + tvResult.added,
     updated: moviesResult.updated + tvResult.updated,
     errors: [...moviesResult.errors, ...tvResult.errors],
+    tvShows: tvResult.tvShows,
   };
 }
