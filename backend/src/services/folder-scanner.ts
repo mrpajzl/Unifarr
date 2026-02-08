@@ -183,22 +183,13 @@ export class FolderScanner {
           // Parse folder name for show title
           const folderParsed = parseMediaFolderName(entry.name);
           
-          // Find or create mediaItem for this TV show
+          // Check if mediaItem already exists (created via Search Media + TMDB match)
           let mediaItem = await db.query.mediaItems.findFirst({
             where: eq(mediaItems.libraryPath, showFolderPath),
           });
           
-          if (!mediaItem) {
-            // Create new TV show entry
-            const [newItem] = await db.insert(mediaItems).values({
-              type: 'tv',
-              title: folderParsed.title,
-              year: folderParsed.year,
-              libraryPath: showFolderPath,
-              monitored: false,
-            }).returning();
-            mediaItem = newItem;
-          }
+          // Don't auto-create mediaItems - let user match via Search Media first
+          // mediaItem will be null for unidentified shows
           
           // Scan each video file individually
           for (const videoFilePath of videoFiles) {
@@ -234,8 +225,8 @@ export class FolderScanner {
                     parsedQuality: fileParsed.quality || this.extractQuality(filename),
                     parsedCodec: fileParsed.codec,
                     parsedSource: fileParsed.source,
-                    mediaItemId: mediaItem.id, // Link to TV show
-                    matched: true, // TV show episodes are matched to their show
+                    mediaItemId: mediaItem?.id, // Link to TV show if exists
+                    matched: !!mediaItem, // Only matched if linked to a media item
                     size: fileSize,
                     scannedAt: new Date(),
                   })
@@ -254,8 +245,8 @@ export class FolderScanner {
                   parsedQuality: fileParsed.quality || this.extractQuality(filename),
                   parsedCodec: fileParsed.codec,
                   parsedSource: fileParsed.source,
-                  mediaItemId: mediaItem.id, // Link to TV show
-                  matched: true, // TV show episodes are matched to their show
+                  mediaItemId: mediaItem?.id, // Link to TV show if exists
+                  matched: !!mediaItem, // Only matched if linked to a media item
                   scannedAt: new Date(),
                 });
                 result.added++;

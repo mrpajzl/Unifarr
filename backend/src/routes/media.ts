@@ -31,6 +31,66 @@ app.get('/:id', async (c) => {
   return c.json(media);
 });
 
+// Get episodes for a TV show (raw file list, no TMDB required)
+app.get('/:id/files', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  
+  const media = await db.query.mediaItems.findFirst({
+    where: (mediaItems, { eq }) => eq(mediaItems.id, id),
+  });
+  
+  if (!media) {
+    return c.json({ error: 'Media not found' }, 404);
+  }
+  
+  if (media.type !== 'tv') {
+    return c.json({ error: 'Media is not a TV show' }, 400);
+  }
+  
+  // Get all files for this media item
+  const mediaFiles = await db.query.files.findMany({
+    where: eq(files.mediaItemId, id),
+  });
+  
+  // Group by season
+  const seasons = new Map<number, typeof mediaFiles>();
+  
+  for (const file of mediaFiles) {
+    const season = file.parsedSeason || 0;
+    if (!seasons.has(season)) {
+      seasons.set(season, []);
+    }
+    seasons.get(season)!.push(file);
+  }
+  
+  // Sort episodes within each season
+  const sortedSeasons = Array.from(seasons.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([seasonNum, episodes]) => ({
+      season_number: seasonNum,
+      episodes: episodes
+        .sort((a, b) => (a.parsedEpisode || 0) - (b.parsedEpisode || 0))
+        .map(ep => ({
+          episode_number: ep.parsedEpisode || 0,
+          name: ep.filename,
+          hasFile: true,
+          file: {
+            id: ep.id,
+            filename: ep.filename,
+            path: ep.path,
+            size: ep.size || 0,
+            quality: ep.parsedQuality,
+          },
+        })),
+    }));
+  
+  return c.json({
+    mediaId: id,
+    title: media.title,
+    seasons: sortedSeasons,
+  });
+});
+
 // Create media item from TMDB
 app.post('/', async (c) => {
   const body = await c.req.json();
