@@ -136,9 +136,21 @@
 
           <!-- Actions -->
           <div class="flex flex-wrap gap-2 mb-8">
-            <button @click="showSearchModal = true" class="btn btn-primary">
+            <button 
+              v-if="!media.tmdbId" 
+              @click="showIdentifyModal = true" 
+              class="btn btn-primary"
+            >
               <Icon name="mdi:magnify" class="w-5 h-5 mr-2" />
-              Search Media
+              Identify on TMDB
+            </button>
+            <button 
+              v-else
+              @click="showSearchModal = true" 
+              class="btn btn-primary"
+            >
+              <Icon name="mdi:download" class="w-5 h-5 mr-2" />
+              Search Downloads
             </button>
             <button @click="refreshMetadata" :disabled="refreshing" class="btn btn-secondary">
               <Icon
@@ -368,6 +380,37 @@
       @saved="toast.success('Custom templates updated')"
     />
 
+    <!-- TMDB Identify Modal -->
+    <Teleport to="body">
+      <div
+        v-if="showIdentifyModal"
+        class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+        @click.self="showIdentifyModal = false"
+      >
+        <div class="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-semibold">Identify on TMDB</h3>
+            <button @click="showIdentifyModal = false" class="text-gray-400 hover:text-white">
+              <Icon name="mdi:close" class="w-6 h-6" />
+            </button>
+          </div>
+          <p class="text-sm text-gray-400 mb-4">
+            Search for "{{ media?.title }}" on TMDB and select the correct match to add metadata, posters, and episode information.
+          </p>
+          <div class="flex justify-center py-8">
+            <NuxtLink 
+              :to="`/discover?search=${encodeURIComponent(media?.title || '')}`"
+              class="btn btn-primary"
+              @click="showIdentifyModal = false"
+            >
+              <Icon name="mdi:magnify" class="w-5 h-5 mr-2" />
+              Open TMDB Search
+            </NuxtLink>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Delete Modal -->
     <Teleport to="body">
       <div
@@ -453,6 +496,9 @@ const refreshMetadata = async () => {
     refreshing.value = false;
   }
 };
+
+// TMDB Identify modal
+const showIdentifyModal = ref(false);
 
 // Torrent search modal
 const showSearchModal = ref(false);

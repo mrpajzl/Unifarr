@@ -163,10 +163,19 @@ const showSearchModal = ref(false);
 const searchQuery = ref('');
 const currentMediaData = ref<any>(null);
 
-// Fetch episodes
+// Fetch episodes (use files endpoint if no TMDB ID)
 const { data: episodesData, pending: loading, error: errorMsg } = await useAsyncData(
   `episodes-${props.mediaId}`,
-  () => api.media.getEpisodes(props.mediaId),
+  async () => {
+    if (props.tmdbId) {
+      // Has TMDB ID - fetch full episode data from TMDB
+      return await api.media.getEpisodes(props.mediaId);
+    } else {
+      // No TMDB ID - fetch raw files
+      const config = useRuntimeConfig();
+      return await $fetch(`${config.public.apiBase}/api/media/${props.mediaId}/files`);
+    }
+  },
   { server: false }
 );
 
