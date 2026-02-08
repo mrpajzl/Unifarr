@@ -56,7 +56,7 @@ export class LibraryScanner {
                 parsedCodec: parsed.codec,
                 parsedSource: parsed.source,
                 size: Number(fileStats.size),
-                scannedAt: new Date().toISOString(),
+                scannedAt: new Date(),
               })
               .where(eq(files.id, existing.id));
             result.updated++;
@@ -75,7 +75,7 @@ export class LibraryScanner {
               parsedCodec: parsed.codec,
               parsedSource: parsed.source,
               matched: 0,
-              scannedAt: new Date().toISOString(),
+              scannedAt: new Date(),
             });
             result.added++;
           }

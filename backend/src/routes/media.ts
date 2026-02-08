@@ -116,7 +116,7 @@ app.post('/', async (c) => {
         matched: 1,
         mediaItemId: inserted.id,
         matchConfidence: 1.0,
-        scannedAt: new Date().toISOString(),
+        scannedAt: new Date(),
       });
     } catch (error) {
       console.error('Failed to create folder:', error);

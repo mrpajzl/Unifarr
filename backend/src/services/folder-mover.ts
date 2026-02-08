@@ -100,7 +100,7 @@ export async function moveMediaFolder(
     await db.update(mediaItems)
       .set({
         libraryPath: newPath,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(mediaItems.id, mediaId));
 

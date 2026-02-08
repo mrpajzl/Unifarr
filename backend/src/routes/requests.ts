@@ -155,7 +155,7 @@ router.patch('/:id/approve', authenticate, requireAdmin, async (c) => {
     const [updated] = await db.update(mediaRequests)
       .set({
         status: 'approved',
-        processedAt: new Date().toISOString(),
+        processedAt: new Date(),
         processedBy: user.userId,
         adminNote: adminNote || null,
       })
@@ -203,7 +203,7 @@ router.patch('/:id/deny', authenticate, requireAdmin, async (c) => {
     const [updated] = await db.update(mediaRequests)
       .set({
         status: 'denied',
-        processedAt: new Date().toISOString(),
+        processedAt: new Date(),
         processedBy: user.userId,
         adminNote: adminNote || null,
       })
