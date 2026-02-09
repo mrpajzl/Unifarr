@@ -80,13 +80,14 @@ export class FolderScanner {
           
           const videoFiles = await this.getVideoFilesInDir(folderPath);
           
-          if (videoFiles.length === 0) {
-            result.errors.push(`${entry.name}: No video files found`);
-            continue;
-          }
-          
           // Parse folder name
           const parsed = parseMediaFolderName(entry.name);
+          
+          // Skip empty folders for movies (can't determine quality/size without files)
+          if (videoFiles.length === 0) {
+            console.log(`⚠️ Empty folder (skipping): ${entry.name}`);
+            continue;
+          }
           
           // Calculate total size
           let totalSize = 0;
@@ -175,21 +176,16 @@ export class FolderScanner {
         try {
           const videoFiles = await this.getVideoFilesInDir(showFolderPath);
           
-          if (videoFiles.length === 0) {
-            result.errors.push(`${entry.name}: No video files found`);
-            continue;
-          }
-          
           // Parse folder name for show title
           const folderParsed = parseMediaFolderName(entry.name);
           
-          // Find or create mediaItem for this TV show (even without TMDB ID)
+          // Find or create mediaItem for this TV show (even without TMDB ID or files)
           let mediaItem = await db.query.mediaItems.findFirst({
             where: eq(mediaItems.libraryPath, showFolderPath),
           });
           
           if (!mediaItem) {
-            // Create new TV show entry (without TMDB ID - user can add it later)
+            // Create new TV show entry (even if no files yet)
             const [newItem] = await db.insert(mediaItems).values({
               type: 'tv',
               title: folderParsed.title,
@@ -198,6 +194,14 @@ export class FolderScanner {
               monitored: false,
             }).returning();
             mediaItem = newItem;
+            result.added++;
+            console.log(`✨ Created TV show: ${folderParsed.title} (empty folder)`);
+          }
+          
+          // If no video files, we're done with this show
+          if (videoFiles.length === 0) {
+            console.log(`⚠️ TV show has no episodes yet: ${entry.name}`);
+            continue;
           }
           
           // Scan each video file individually
