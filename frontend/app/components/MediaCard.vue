@@ -47,9 +47,10 @@
 
       <!-- Options Menu Button -->
       <button
+        ref="menuButtonRef"
         v-if="!selectionMode"
         class="absolute top-2 right-2 z-10 w-8 h-8 bg-dark-900/90 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-dark-800 transition-colors opacity-0 group-hover:opacity-100 sm:opacity-100"
-        @click.stop="showOptionsMenu = true"
+        @click.stop="handleMenuButtonClick"
       >
         <Icon name="mdi:dots-vertical" class="w-5 h-5" />
       </button>
@@ -106,49 +107,56 @@
       </div>
     </div>
 
-    <!-- Desktop Dropdown Menu -->
-    <div
-      v-if="showOptionsMenu && !isMobile"
-      class="absolute top-12 right-2 z-50 w-56 bg-dark-800 rounded-lg border border-gray-700 overflow-hidden shadow-2xl"
-      @click.stop
-    >
-      <div class="py-1">
-        <button
-          @click="handleSelectFromMenu"
-          class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
-        >
-          <Icon name="mdi:checkbox-marked-circle-outline" class="w-5 h-5 text-primary-500" />
-          <span class="text-gray-100 text-sm">Select</span>
-        </button>
-
-        <button
-          @click="handleViewDetails"
-          class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
-        >
-          <Icon name="mdi:eye-outline" class="w-5 h-5 text-blue-500" />
-          <span class="text-gray-100 text-sm">View Details</span>
-        </button>
-
-        <button
-          @click="handleRefreshMetadata"
-          class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
-        >
-          <Icon name="mdi:refresh" class="w-5 h-5 text-green-500" />
-          <span class="text-gray-100 text-sm">Refresh Metadata</span>
-        </button>
-
-        <button
-          @click="handleDelete"
-          class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
-        >
-          <Icon name="mdi:delete-outline" class="w-5 h-5 text-red-500" />
-          <span class="text-gray-100 text-sm">Delete</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile Options Menu -->
+    <!-- Options Menu (Desktop & Mobile) -->
     <Teleport to="body">
+      <!-- Desktop: Click outside closes -->
+      <div
+        v-if="showOptionsMenu && !isMobile"
+        class="fixed inset-0 z-40"
+        @click="showOptionsMenu = false"
+      >
+        <div
+          class="absolute w-56 bg-dark-800 rounded-lg border border-gray-700 overflow-hidden shadow-2xl"
+          :style="menuPosition"
+          @click.stop
+        >
+          <div class="py-1">
+            <button
+              @click="handleSelectFromMenu"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:checkbox-marked-circle-outline" class="w-5 h-5 text-primary-500" />
+              <span class="text-gray-100 text-sm">Select</span>
+            </button>
+
+            <button
+              @click="handleViewDetails"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:eye-outline" class="w-5 h-5 text-blue-500" />
+              <span class="text-gray-100 text-sm">View Details</span>
+            </button>
+
+            <button
+              @click="handleRefreshMetadata"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:refresh" class="w-5 h-5 text-green-500" />
+              <span class="text-gray-100 text-sm">Refresh Metadata</span>
+            </button>
+
+            <button
+              @click="handleDelete"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:delete-outline" class="w-5 h-5 text-red-500" />
+              <span class="text-gray-100 text-sm">Delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile: Full-screen modal -->
       <div
         v-if="showOptionsMenu && isMobile"
         class="fixed inset-0 z-50 flex items-end"
@@ -250,8 +258,10 @@ const {
 
 const selected = computed(() => isSelected(props.media.id))
 
-// Options menu for mobile
+// Options menu
 const showOptionsMenu = ref(false)
+const menuButtonRef = ref<HTMLButtonElement | null>(null)
+const menuPosition = ref({ top: '0px', left: '0px' })
 
 // Device detection
 const isMobile = ref(false)
@@ -259,6 +269,45 @@ const isHovered = ref(false)
 
 // Shift key detection
 const shiftPressed = ref(false)
+
+// Calculate menu position based on button
+const handleMenuButtonClick = () => {
+  if (!menuButtonRef.value) return
+  
+  const rect = menuButtonRef.value.getBoundingClientRect()
+  const menuWidth = 224 // w-56 = 14rem = 224px
+  const menuHeight = 200 // approximate height
+  
+  // Position below the button, aligned to right
+  let top = rect.bottom + 4
+  let left = rect.right - menuWidth
+  
+  // Keep menu on screen
+  const viewportHeight = window.innerHeight
+  const viewportWidth = window.innerWidth
+  
+  // If menu would go off bottom, position above button
+  if (top + menuHeight > viewportHeight) {
+    top = rect.top - menuHeight - 4
+  }
+  
+  // If menu would go off left, align to left of button
+  if (left < 8) {
+    left = 8
+  }
+  
+  // If menu would go off right, align to right edge
+  if (left + menuWidth > viewportWidth - 8) {
+    left = viewportWidth - menuWidth - 8
+  }
+  
+  menuPosition.value = {
+    top: `${top}px`,
+    left: `${left}px`
+  }
+  
+  showOptionsMenu.value = true
+}
 
 onMounted(() => {
   // Simple mobile detection
@@ -274,24 +323,13 @@ onMounted(() => {
   window.addEventListener('keyup', (e) => {
     if (e.key === 'Shift') shiftPressed.value = false
   })
-
-  // Close menu on click outside (desktop only)
-  document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
   // Cleanup shift key listeners
   window.removeEventListener('keydown', () => {})
   window.removeEventListener('keyup', () => {})
-  document.removeEventListener('click', handleClickOutside)
 })
-
-// Close menu when clicking outside
-const handleClickOutside = (e: MouseEvent) => {
-  if (showOptionsMenu.value && !isMobile.value) {
-    showOptionsMenu.value = false
-  }
-}
 
 // Show checkbox logic
 const showCheckbox = computed(() => {
