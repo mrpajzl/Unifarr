@@ -124,6 +124,7 @@
     <!-- Grid View -->
     <div
       v-else-if="viewMode === 'grid'"
+      ref="gridContainer"
       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
       :class="{ 'pb-24': selectedCount > 0 }"
     >
@@ -132,6 +133,7 @@
         :key="show.id"
         :media="show"
         :index="index"
+        :data-letter="getFirstLetter(show.title)"
         :in-range-preview="isInRangePreview(index)"
         @hover="handleRangeHover"
         @leave="handleRangeLeave"
@@ -140,12 +142,24 @@
       />
     </div>
 
+    <!-- Load More Button -->
+    <div v-if="viewMode === 'grid' && hasMore" class="flex justify-center mt-8">
+      <button
+        @click="loadMore"
+        class="btn btn-secondary"
+      >
+        <Icon name="mdi:chevron-down" class="w-5 h-5 mr-2" />
+        Load More ({{ filteredShows.length - displayedShows.length }} remaining)
+      </button>
+    </div>
+
     <!-- List View -->
-    <div v-else class="space-y-2">
+    <div v-else-if="viewMode === 'list'" class="space-y-2">
       <NuxtLink
         v-for="show in displayedShows"
         :key="show.id"
         :to="`/media/${show.id}`"
+        :data-letter="getFirstLetter(show.title)"
         class="card p-3 flex items-center gap-4 hover:border-primary-500/50 transition-colors group"
       >
         <div class="w-12 h-[72px] rounded overflow-hidden bg-gray-800 flex-shrink-0">
@@ -189,6 +203,15 @@
         <Icon name="mdi:chevron-right" class="w-5 h-5 text-gray-600 flex-shrink-0" />
       </NuxtLink>
     </div>
+
+    <!-- Alphabet Scrollbar -->
+    <ClientOnly>
+      <AlphabetScrollbar
+        v-if="filteredShows.length > 20"
+        :current-letter="currentLetter"
+        @jump="jumpToLetter"
+      />
+    </ClientOnly>
 
     <!-- Scan Modal -->
     <ClientOnly>
@@ -347,6 +370,52 @@ const filteredShows = computed(() => {
   });
 
   return filtered;
+});
+
+// Lazy loading
+const itemsPerPage = ref(50);
+const currentPage = ref(1);
+const gridContainer = ref<HTMLElement | null>(null);
+const currentLetter = ref<string>('');
+
+const displayedShows = computed(() => {
+  const end = currentPage.value * itemsPerPage.value;
+  return filteredShows.value.slice(0, end);
+});
+
+const hasMore = computed(() => {
+  return displayedShows.value.length < filteredShows.value.length;
+});
+
+const loadMore = () => {
+  currentPage.value++;
+};
+
+// Alphabet scrolling
+const getFirstLetter = (title: string): string => {
+  const first = title.charAt(0).toUpperCase();
+  return /[A-Z]/.test(first) ? first : '#';
+};
+
+const jumpToLetter = (letter: string) => {
+  currentLetter.value = letter;
+  
+  const selector = letter === '#' 
+    ? '[data-letter="#"]'
+    : `[data-letter="${letter}"]`;
+  
+  const element = document.querySelector(selector) as HTMLElement;
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      currentLetter.value = '';
+    }, 2000);
+  }
+};
+
+// Reset pagination when filters change
+watch([searchQuery, genreFilter, yearFilter, showOnlyWithoutTMDB, sortBy, sortOrder], () => {
+  currentPage.value = 1;
 });
 
 const onScanned = () => {
