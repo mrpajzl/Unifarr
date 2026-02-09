@@ -1,6 +1,6 @@
 apiVersion: v2
 name: unifarr
-version: 1.0.33
+version: 1.0.34
 appVersion: "1.0.0"
 description: Unified media management for movies and TV shows
 type: application
