@@ -116,14 +116,14 @@
         @click="showOptionsMenu = false"
       >
         <div
-          class="absolute w-56 bg-dark-800 rounded-lg border border-gray-700 overflow-hidden shadow-2xl"
-          :style="menuPosition"
+          class="absolute w-56 rounded-lg border border-gray-700 overflow-hidden shadow-2xl"
+          :style="{ ...menuPosition, backgroundColor: '#1f2937' }"
           @click.stop
         >
           <div class="py-1">
             <button
               @click="handleSelectFromMenu"
-              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:checkbox-marked-circle-outline" class="w-5 h-5 text-primary-500" />
               <span class="text-gray-100 text-sm">Select</span>
@@ -131,7 +131,7 @@
 
             <button
               @click="handleViewDetails"
-              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:eye-outline" class="w-5 h-5 text-blue-500" />
               <span class="text-gray-100 text-sm">View Details</span>
@@ -139,7 +139,7 @@
 
             <button
               @click="handleRefreshMetadata"
-              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:refresh" class="w-5 h-5 text-green-500" />
               <span class="text-gray-100 text-sm">Refresh Metadata</span>
@@ -147,7 +147,7 @@
 
             <button
               @click="handleDelete"
-              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:delete-outline" class="w-5 h-5 text-red-500" />
               <span class="text-gray-100 text-sm">Delete</span>
@@ -167,7 +167,7 @@
         
         <!-- Menu -->
         <div
-          class="relative w-full bg-dark-800 rounded-t-xl border border-gray-700 overflow-hidden shadow-xl"
+          class="relative w-full bg-gray-800 rounded-t-xl border border-gray-700 overflow-hidden shadow-xl"
           @click.stop
         >
           <!-- Header -->
@@ -179,7 +179,7 @@
           <div class="py-2">
             <button
               @click="handleSelectFromMenu"
-              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:checkbox-marked-circle-outline" class="w-5 h-5 text-primary-500" />
               <span class="text-gray-100">Select</span>
@@ -187,7 +187,7 @@
 
             <button
               @click="handleViewDetails"
-              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:eye-outline" class="w-5 h-5 text-blue-500" />
               <span class="text-gray-100">View Details</span>
@@ -195,7 +195,7 @@
 
             <button
               @click="handleRefreshMetadata"
-              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:refresh" class="w-5 h-5 text-green-500" />
               <span class="text-gray-100">Refresh Metadata</span>
@@ -203,7 +203,7 @@
 
             <button
               @click="handleDelete"
-              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
               <Icon name="mdi:delete-outline" class="w-5 h-5 text-red-500" />
               <span class="text-gray-100">Delete</span>
