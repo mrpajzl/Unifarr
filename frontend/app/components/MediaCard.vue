@@ -169,7 +169,7 @@
       <!-- Mobile: Full-screen modal -->
       <div
         v-if="showOptionsMenu && isMobile"
-        class="fixed inset-0 z-60 flex items-end"
+        class="fixed inset-0 z-[60] flex items-end"
         @click="showOptionsMenu = false"
       >
         <!-- Backdrop -->

@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="showModal"
-    class="fixed inset-0 bg-black/70 flex items-center justify-center z-60 p-4"
+    class="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4"
     @click.self="showModal = false"
   >
     <div class="card p-6 max-w-md w-full">

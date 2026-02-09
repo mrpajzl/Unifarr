@@ -31,7 +31,7 @@
     >
       <div
         v-if="isOpen"
-        class="absolute right-0 mt-2 w-96 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl z-60"
+        class="absolute right-0 mt-2 w-96 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl z-[60]"
         @click.stop
       >
         <!-- Header -->

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="modelValue" class="fixed inset-0 bg-black/80 flex items-center justify-center z-60 p-4">
+  <div v-if="modelValue" class="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
     <div class="bg-gray-900 rounded-lg max-w-3xl w-full max-h-[80vh] flex flex-col border border-gray-700">
       <!-- Header -->
       <div class="p-4 border-b border-gray-700 flex items-center justify-between">

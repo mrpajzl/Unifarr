@@ -148,7 +148,7 @@
       >
         <div
           v-if="userToDelete"
-          class="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 flex items-center justify-center p-4"
+          class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
           @click.self="userToDelete = null"
         >
           <div class="card max-w-md w-full p-6">
