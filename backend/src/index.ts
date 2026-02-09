@@ -24,6 +24,7 @@ import authRouter from './routes/auth';
 import usersRouter from './routes/users';
 import requestsRouter from './routes/requests';
 import monitorRouter from './routes/monitor';
+import episodeMatcherRouter from './routes/episode-matcher';
 import { startAutoImport } from './services/download/auto-import';
 import { startFileWatcher } from './services/file-watcher';
 import { startEpisodeMonitor } from './services/episode-monitor';
@@ -82,6 +83,7 @@ app.route('/api/tracker-proxy', trackerProxyRouter);
 app.route('/api/search/unified', searchUnifiedRouter);
 app.route('/api/search/templates', searchTemplatesRouter);
 app.route('/api/monitor', monitorRouter);
+app.route('/api/episode-matcher', episodeMatcherRouter);
 
 // Error handling
 app.onError((err, c) => {
