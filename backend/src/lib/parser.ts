@@ -47,21 +47,26 @@ const editionPatterns = [
 ];
 
 // TV Show patterns (inspired by Sonarr + extended for common formats)
+// Note: Season number should come from folder structure, not filename
 const tvPatterns = [
-  // S01E05 at start of filename (no title prefix) - for files like "S01E01.mp4"
-  /^(?<title>)S(?<season>\d{1,2})[\s._-]?E(?<episode>\d{1,3})(?:[\s._-]?E(?<episode2>\d{1,3}))?/i,
+  // S01E05 at start of filename (no title) - extract episode only, season from folder
+  /^S\d{1,2}[\s._-]?E(?<episode>\d{1,3})(?:[\s._-]?E(?<episode2>\d{1,3}))?/i,
+  // E05 or EP05 at start (episode only)
+  /^(?:E|EP)[\s._-]?(?<episode>\d{1,3})\b/i,
+  // Just episode number: "01.mp4", "1.mkv", "05 title.mp4"
+  /^(?<episode>\d{1,3})(?:[\s._-]|$)/i,
   // S01E05, S01E05E06, S01E05-E06, S1E5 (with title prefix)
-  /(?<title>.+?)[\s._-]+S(?<season>\d{1,2})[\s._-]?E(?<episode>\d{1,3})(?:[\s._-]?E(?<episode2>\d{1,3}))?/i,
+  /(?<title>.+?)[\s._-]+S\d{1,2}[\s._-]?E(?<episode>\d{1,3})(?:[\s._-]?E(?<episode2>\d{1,3}))?/i,
   // Season 1 Episode 5, Season 01 Episode 05
-  /(?<title>.+?)[\s._-]+Season[\s._-]?(?<season>\d{1,2})[\s._-]+Episode[\s._-]?(?<episode>\d{1,3})/i,
-  // 1x05, 1x05x06, 1x05-06
-  /(?<title>.+?)[\s._-]+(?<season>\d{1,2})x(?<episode>\d{1,3})(?:[\s._-]?x?(?<episode2>\d{1,3}))?/i,
+  /(?<title>.+?)[\s._-]+Season[\s._-]?\d{1,2}[\s._-]+Episode[\s._-]?(?<episode>\d{1,3})/i,
+  // 1x05, 1x05x06, 1x05-06 (with title)
+  /(?<title>.+?)[\s._-]+\d{1,2}x(?<episode>\d{1,3})(?:[\s._-]?x?(?<episode2>\d{1,3}))?/i,
   // Show.Name.105 (season 1, episode 5) - must be 3 digits, first is season
-  /(?<title>.+?)[\s._-]+(?<season>\d{1})(?<episode>\d{2})(?![\dp])/i,
+  /(?<title>.+?)[\s._-]+\d{1}(?<episode>\d{2})(?![\dp])/i,
   // [01x05] or (1x05) - brackets variation
-  /(?<title>.+?)[\s._-]*[\[\(](?<season>\d{1,2})x(?<episode>\d{1,3})[\]\)]/i,
-  // Episode 5, Ep 5, E05 (when in Season subfolder, fallback to episode only)
-  /(?<title>.+?)[\s._-]+(?:Episode|Ep|E)[\s._-]?(?<episode>\d{1,3})\b/i,
+  /(?<title>.+?)[\s._-]*[\[\(]\d{1,2}x(?<episode>\d{1,3})[\]\)]/i,
+  // Episode 5, Ep 5 (when in Season subfolder, fallback to episode only)
+  /(?<title>.+?)[\s._-]+(?:Episode|Ep)[\s._-]?(?<episode>\d{1,3})\b/i,
 ];
 
 // Movie patterns (inspired by Radarr)
@@ -118,9 +123,9 @@ export function parseMediaFile(filename: string): ParsedMedia {
       const { title, season, episode, episode2 } = match.groups;
       return {
         type: 'tv',
-        title: cleanTitle(title),
-        season: parseInt(season),
-        episode: parseInt(episode),
+        title: title ? cleanTitle(title) : '',
+        season: season ? parseInt(season) : undefined, // Season may come from folder instead
+        episode: episode ? parseInt(episode) : undefined,
         quality: extractQuality(nameWithoutExt),
         resolution: resolutionPatterns.find(p => p.regex.test(nameWithoutExt))?.value,
         source: sourcePatterns.find(p => p.regex.test(nameWithoutExt))?.value,
@@ -171,14 +176,14 @@ export function parseMediaPath(fullPath: string): ParsedMedia {
   if (parsed.type === 'unknown') {
     if (/\/Movies?\//i.test(fullPath)) {
       parsed.type = 'movie';
-    } else if (/\/TV Shows?|\/Series\//i.test(fullPath) || /\/Season \d+/i.test(fullPath)) {
+    } else if (/\/TV Shows?|\/Series\//i.test(fullPath) || /\/Season[\s._-]*\d+/i.test(fullPath) || /\/S\d+\//i.test(fullPath)) {
       parsed.type = 'tv';
     }
   }
   
-  // Extract season number from parent folder if not found in filename
-  // Supports: Season 1, Season 01, Season_01, Season-01, S01, S1, etc.
-  if (parsed.type === 'tv' && !parsed.season) {
+  // For TV shows, ALWAYS extract season from folder structure (ignore filename season)
+  // This is the source of truth - folder structure determines season
+  if (parsed.type === 'tv' || /\/Season[\s._-]*\d+/i.test(fullPath) || /\/S\d+\//i.test(fullPath)) {
     // Try various season folder patterns:
     // - Season 1, Season 01, Season.01, Season-01, Season_01
     // - S01, S1
@@ -192,7 +197,9 @@ export function parseMediaPath(fullPath: string): ParsedMedia {
     for (const pattern of seasonPatterns) {
       const match = fullPath.match(pattern);
       if (match) {
+        // OVERRIDE any season parsed from filename - folder is source of truth
         parsed.season = parseInt(match[1]);
+        parsed.type = 'tv';
         break;
       }
     }
