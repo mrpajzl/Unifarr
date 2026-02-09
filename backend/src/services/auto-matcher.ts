@@ -120,9 +120,13 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
     }
     
     if (results.length === 0) {
-      console.log(`❌ No TMDB results for: ${parsedTitle}`);
+      console.log(`❌ No TMDB results for: "${parsedTitle}"`);
+      console.log(`   Query: ${parsedTitle}${parsedYear ? ` (${parsedYear})` : ''}`);
+      console.log(`   Type: ${isMovie ? 'movie' : 'TV show'}`);
       return false;
     }
+    
+    console.log(`📊 Found ${results.length} TMDB results for "${parsedTitle}"`);
     
     // Score each result
     const scored = results.map(result => {

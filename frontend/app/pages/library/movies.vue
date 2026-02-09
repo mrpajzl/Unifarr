@@ -133,6 +133,7 @@
         @hover="handleRangeHover"
         @leave="handleRangeLeave"
         @range-select="handleRangeSelect"
+        @identified="refresh"
       />
     </div>
 

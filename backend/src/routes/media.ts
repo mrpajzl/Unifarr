@@ -700,27 +700,60 @@ app.post('/bulk/auto-match', async (c) => {
         });
 
         if (!media) {
+          console.log(`❌ Media ${id} not found`);
           results.failed.push({ id, error: 'Media not found' });
           continue;
         }
 
         if (media.tmdbId) {
+          console.log(`⚠️ Media ${id} (${media.title}) already matched to TMDB ${media.tmdbId}`);
           results.failed.push({ id, error: 'Already matched' });
           continue;
         }
 
-        // Try to auto-match
-        const matched = await autoMatchFolder(media.id, tmdb);
+        console.log(`🔍 Attempting auto-match for media ${id}: "${media.title}" (${media.year || 'no year'})`);
         
-        if (matched) {
-          results.success.push(id);
-          console.log(`✅ Auto-matched ${media.title} (${id})`);
-        } else {
-          results.failed.push({ id, error: 'No match found' });
+        // Media items don't have parsedTitle - we need to search by their title directly
+        const isMovie = media.type === 'movie';
+        const isTv = media.type === 'tv';
+        
+        console.log(`   Type: ${isMovie ? 'movie' : 'TV show'}`);
+        console.log(`   Title: "${media.title}"`);
+        console.log(`   Year: ${media.year || 'not set'}`);
+        
+        // Search TMDB
+        let searchResults;
+        try {
+          if (isMovie) {
+            searchResults = await (await tmdb).searchMovies(media.title, media.year);
+          } else {
+            searchResults = await (await tmdb).searchTVShows(media.title, media.year);
+          }
+        } catch (err: any) {
+          console.log(`❌ TMDB search failed: ${err.message}`);
+          results.failed.push({ id, error: `TMDB search failed: ${err.message}` });
+          continue;
         }
+        
+        if (searchResults.length === 0) {
+          console.log(`❌ No TMDB results for "${media.title}"`);
+          results.failed.push({ id, error: 'No TMDB results' });
+          continue;
+        }
+        
+        console.log(`📊 Found ${searchResults.length} TMDB results:`);
+        searchResults.slice(0, 5).forEach((result, idx) => {
+          const tmdbTitle = 'title' in result ? result.title : result.name;
+          console.log(`   ${idx + 1}. "${tmdbTitle}" (${result.year}) - TMDB ID: ${result.id}`);
+        });
+        
+        // For now, just report that we found results but need manual selection
+        console.log(`⚠️ Auto-matching skipped - manual selection recommended`);
+        results.failed.push({ id, error: 'Manual selection required' });
+        
       } catch (error: any) {
+        console.log(`❌ Failed to auto-match ${id}: ${error.message}`);
         results.failed.push({ id, error: error.message });
-        console.error(`❌ Failed to auto-match ${id}:`, error);
       }
     }
 

@@ -138,6 +138,16 @@
             </button>
 
             <button
+              v-if="!media.tmdbId"
+              @click="handleIdentify"
+              class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
+            >
+              <Icon name="mdi:magnify" class="w-5 h-5 text-amber-500" />
+              <span class="text-gray-100 text-sm">Identify on TMDB</span>
+            </button>
+
+            <button
+              v-if="media.tmdbId"
               @click="handleRefreshMetadata"
               class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
@@ -194,6 +204,16 @@
             </button>
 
             <button
+              v-if="!media.tmdbId"
+              @click="handleIdentify"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
+            >
+              <Icon name="mdi:magnify" class="w-5 h-5 text-amber-500" />
+              <span class="text-gray-100">Identify on TMDB</span>
+            </button>
+
+            <button
+              v-if="media.tmdbId"
               @click="handleRefreshMetadata"
               class="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
             >
@@ -222,6 +242,16 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- TMDB Identify Modal -->
+    <TmdbIdentifyModal
+      v-if="showIdentifyModal"
+      :media-id="media.id"
+      :initial-query="media.title"
+      :type="media.type === 'tv' ? 'tv' : 'movie'"
+      @close="showIdentifyModal = false"
+      @identify="handleIdentifySuccess"
+    />
   </div>
 </template>
 
@@ -243,6 +273,7 @@ const emit = defineEmits<{
   'hover': [index: number]
   'leave': []
   'range-select': [endIndex: number]
+  'identified': [mediaId: number]
 }>()
 
 const tmdb = useTMDB()
@@ -385,6 +416,31 @@ const handleCheckboxClick = (event: MouseEvent) => {
     emit('range-select', props.index)
   } else {
     toggleSelection(props.media.id, props.index)
+  }
+}
+
+// Identify modal
+const showIdentifyModal = ref(false)
+
+const handleIdentify = () => {
+  showOptionsMenu.value = false
+  showIdentifyModal.value = true
+}
+
+const handleIdentifySuccess = async (tmdbId: number, type: 'movie' | 'tv') => {
+  try {
+    const config = useRuntimeConfig()
+    await $fetch(`${config.public.apiBase}/api/media/${props.media.id}/identify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tmdbId, type }),
+    })
+    
+    showIdentifyModal.value = false
+    // Emit refresh event to parent
+    emit('identified', props.media.id)
+  } catch (err: any) {
+    console.error('Failed to identify:', err)
   }
 }
 
