@@ -115,6 +115,11 @@
                 <span>Login</span>
               </div>
             </NuxtLink>
+
+            <!-- Version -->
+            <div class="px-3 py-2 text-xs text-gray-600 text-center">
+              v{{ version || '...' }}
+            </div>
           </div>
         </ClientOnly>
       </div>
@@ -153,6 +158,21 @@ const sidebarOpen = ref(false);
 const api = useApi();
 const { isAuthenticated, isAdmin, user, logout } = useAuth();
 
+// Fetch version
+const version = ref<string>('');
+const fetchVersion = async () => {
+  try {
+    const config = useRuntimeConfig();
+    const response = await fetch(`${config.public.apiBase}/api/version`);
+    if (response.ok) {
+      const data = await response.json();
+      version.value = data.version;
+    }
+  } catch (error) {
+    console.error('Failed to fetch version:', error);
+  }
+};
+
 // Close sidebar on route change (mobile)
 watch(() => route.path, () => {
   sidebarOpen.value = false;
@@ -171,6 +191,7 @@ const fetchCounts = async () => {
 // Initial fetch (client-side only)
 if (import.meta.client) {
   fetchCounts();
+  fetchVersion();
 }
 
 // Refresh counts periodically

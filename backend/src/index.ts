@@ -35,13 +35,30 @@ const app = new Hono();
 app.use('*', cors());
 app.use('*', logger());
 
+// Read version from package.json
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+let VERSION = '1.1.0';
+try {
+  const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+  VERSION = packageJson.version;
+} catch (error) {
+  console.warn('Could not read version from package.json');
+}
+
 // Health check
 app.get('/', (c) => {
   return c.json({
     name: 'Unifarr API',
-    version: '1.0.0',
+    version: VERSION,
     status: 'online',
   });
+});
+
+// Version endpoint
+app.get('/api/version', (c) => {
+  return c.json({ version: VERSION });
 });
 
 // Routes
