@@ -45,18 +45,18 @@
         </div>
       </div>
 
-      <!-- Mobile Options Menu Button -->
+      <!-- Options Menu Button -->
       <button
-        v-if="isMobile && !selectionMode"
-        class="absolute top-2 right-2 z-10 w-8 h-8 bg-dark-900/90 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-dark-800 transition-colors"
+        v-if="!selectionMode"
+        class="absolute top-2 right-2 z-10 w-8 h-8 bg-dark-900/90 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-dark-800 transition-colors opacity-0 group-hover:opacity-100 sm:opacity-100"
         @click.stop="showOptionsMenu = true"
       >
         <Icon name="mdi:dots-vertical" class="w-5 h-5" />
       </button>
 
-      <!-- Rating badge (moved to avoid overlap with checkbox) -->
+      <!-- Rating badge (when menu not shown) -->
       <div 
-        v-if="media.voteAverage && (!showCheckbox || isMobile)" 
+        v-if="media.voteAverage && selectionMode" 
         class="absolute top-2 right-2 bg-dark-900/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1"
       >
         <StarIcon class="w-4 h-4 text-yellow-500" />
