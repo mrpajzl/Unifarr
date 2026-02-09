@@ -230,6 +230,7 @@ router.get('/:hash', async (c) => {
  * PATCH /api/downloads/:hash
  * Update download status (pause/resume)
  * Body: { action: 'pause' | 'resume' }
+ * Note: Pause/resume only works for torrents, not HTTP downloads
  */
 router.patch('/:hash', async (c) => {
   try {
@@ -242,20 +243,36 @@ router.patch('/:hash', async (c) => {
     }
 
     const client = getWebTorrentClient();
-    
-    if (action === 'pause') {
-      client.pauseTorrent(hash);
-    } else if (action === 'resume') {
-      client.resumeTorrent(hash);
-    }
-
-    // Get updated info
     const torrentInfo = client.getTorrent(hash);
+    
+    if (torrentInfo) {
+      // It's a torrent
+      if (action === 'pause') {
+        client.pauseTorrent(hash);
+      } else if (action === 'resume') {
+        client.resumeTorrent(hash);
+      }
 
-    return c.json({
-      success: true,
-      torrent: torrentInfo,
-    });
+      // Get updated info
+      const updatedInfo = client.getTorrent(hash);
+
+      return c.json({
+        success: true,
+        torrent: updatedInfo,
+      });
+    } else {
+      // Check if it's an HTTP download
+      const httpDownloader = await getHTTPDownloader();
+      const httpDownload = httpDownloader.getDownload(hash);
+      
+      if (httpDownload) {
+        return c.json({ 
+          error: 'Pause/resume not supported for HTTP downloads. Use cancel instead.' 
+        }, 400);
+      }
+      
+      return c.json({ error: 'Download not found' }, 404);
+    }
   } catch (error: any) {
     console.error('Update download error:', error);
     return c.json({ error: error.message }, 500);
@@ -264,7 +281,7 @@ router.patch('/:hash', async (c) => {
 
 /**
  * DELETE /api/downloads/:hash
- * Remove download
+ * Remove download (torrent or HTTP)
  * Query params: deleteFiles=true/false (default: false)
  */
 router.delete('/:hash', async (c) => {
@@ -272,13 +289,32 @@ router.delete('/:hash', async (c) => {
     const hash = c.req.param('hash');
     const deleteFiles = c.req.query('deleteFiles') === 'true';
 
+    // Check if it's a torrent or HTTP download
     const client = getWebTorrentClient();
-    await client.removeTorrent(hash, deleteFiles);
+    const torrentInfo = client.getTorrent(hash);
     
-    return c.json({
-      success: true,
-      message: 'Torrent removed',
-    });
+    if (torrentInfo) {
+      // It's a torrent
+      await client.removeTorrent(hash, deleteFiles);
+      return c.json({
+        success: true,
+        message: 'Torrent removed',
+      });
+    } else {
+      // Try HTTP downloader
+      const httpDownloader = await getHTTPDownloader();
+      const httpDownload = httpDownloader.getDownload(hash);
+      
+      if (httpDownload) {
+        await httpDownloader.cancelDownload(hash);
+        return c.json({
+          success: true,
+          message: 'HTTP download cancelled',
+        });
+      }
+      
+      return c.json({ error: 'Download not found' }, 404);
+    }
   } catch (error: any) {
     console.error('Delete download error:', error);
     return c.json({ error: error.message }, 500);

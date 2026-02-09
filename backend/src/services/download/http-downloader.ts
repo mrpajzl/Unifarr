@@ -226,6 +226,13 @@ class HTTPDownloader {
   }
   
   /**
+   * Get download by ID (alias for getProgress)
+   */
+  getDownload(downloadId: string): DownloadProgress | null {
+    return this.activeDownloads.get(downloadId) || null;
+  }
+  
+  /**
    * Get all active downloads
    */
   getAllDownloads(): DownloadProgress[] {

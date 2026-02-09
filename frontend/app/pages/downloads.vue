@@ -123,6 +123,11 @@
                 {{ download.status }}
               </span>
               
+              <!-- Type Badge -->
+              <span class="px-2 py-1 rounded text-xs font-medium bg-gray-700/50 text-gray-300">
+                {{ download.type === 'http' ? 'HTTP' : 'Torrent' }}
+              </span>
+              
               <!-- Size -->
               <div v-if="download.size" class="flex items-center gap-1.5 text-gray-400">
                 <Icon name="mdi:harddisk" class="w-4 h-4" />
@@ -158,6 +163,7 @@
           <!-- Actions -->
           <div class="flex gap-2 flex-shrink-0">
             <button
+              v-if="download.type === 'torrent'"
               @click="pauseDownload(download.id)"
               :disabled="download.status === 'paused'"
               class="btn btn-secondary btn-sm"
@@ -166,6 +172,7 @@
               <Icon name="mdi:pause" class="w-4 h-4" />
             </button>
             <button
+              v-if="download.type === 'torrent'"
               @click="resumeDownload(download.id)"
               :disabled="download.status !== 'paused'"
               class="btn btn-secondary btn-sm"
@@ -176,7 +183,7 @@
             <button
               @click="cancelDownload(download.id)"
               class="btn btn-secondary btn-sm text-red-400 hover:text-red-300"
-              title="Cancel"
+              :title="download.type === 'http' ? 'Cancel download' : 'Cancel'"
             >
               <Icon name="mdi:close" class="w-4 h-4" />
             </button>
