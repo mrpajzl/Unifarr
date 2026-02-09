@@ -78,11 +78,16 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
     const { parsedTitle, parsedYear, path } = folder;
     
     // Determine type from path
-    const isMovie = path.includes('/movies/') || path.includes('/Movies/');
-    const isTv = path.includes('/tvshows/') || path.includes('/TV/') || path.includes('/tv/');
+    const isMovie = path.toLowerCase().includes('/movies/');
+    const isTv = path.toLowerCase().includes('/tvshows/') || 
+                 path.toLowerCase().includes('/tv shows/') ||
+                 path.toLowerCase().includes('/tv/') ||
+                 path.toLowerCase().includes('/series/') ||
+                 /Season\s+\d+/i.test(path); // If path contains "Season X", it's TV
     
     if (!isMovie && !isTv) {
       console.log(`⚠️ Cannot determine media type for: ${path}`);
+      console.log(`   Path should contain '/movies/', '/tvshows/', '/tv/', '/series/', or 'Season X'`);
       return false;
     }
     
@@ -95,14 +100,23 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
     
     const tmdb = await getTMDBService();
     
-    console.log(`🔍 Auto-matching: "${parsedTitle}" (${parsedYear || 'no year'}) - ${isMovie ? 'movie' : 'TV'}`);
+    console.log(`🔍 Auto-matching folder ${folderId}:`);
+    console.log(`   Path: ${path}`);
+    console.log(`   Title: "${parsedTitle}"`);
+    console.log(`   Year: ${parsedYear || 'not parsed'}`);
+    console.log(`   Type: ${isMovie ? 'movie' : 'TV show'}`);
     
     // Search TMDB
     let results;
-    if (isMovie) {
-      results = await tmdb.searchMovies(parsedTitle, parsedYear);
-    } else {
-      results = await tmdb.searchTVShows(parsedTitle, parsedYear);
+    try {
+      if (isMovie) {
+        results = await tmdb.searchMovies(parsedTitle, parsedYear);
+      } else {
+        results = await tmdb.searchTVShows(parsedTitle, parsedYear);
+      }
+    } catch (err: any) {
+      console.log(`❌ TMDB search failed: ${err.message}`);
+      return false;
     }
     
     if (results.length === 0) {
@@ -155,13 +169,15 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
     
     console.log(`📊 Best match: "${best.tmdbTitle}" (${best.year}) - confidence: ${(best.confidence * 100).toFixed(1)}%`);
     
-    // STRICT THRESHOLD: Only auto-match if ≥95% confident (or 92% if no year provided)
-    const CONFIDENCE_THRESHOLD = parsedYear ? 0.95 : 0.92;
+    // Threshold: Lower for TV shows (85%) vs Movies (90%)
+    // TV shows often have more naming variations
+    const CONFIDENCE_THRESHOLD = isTv ? 0.85 : (parsedYear ? 0.90 : 0.88);
     
     if (best.confidence < CONFIDENCE_THRESHOLD) {
       console.log(`⚠️ Confidence ${(best.confidence * 100).toFixed(1)}% < ${(CONFIDENCE_THRESHOLD * 100)}% threshold - skipping auto-match`);
       console.log(`   Parsed: "${parsedTitle}" (${parsedYear || 'no year'})`);
       console.log(`   TMDB:   "${best.tmdbTitle}" (${best.year})`);
+      console.log(`   Type: ${isMovie ? 'movie' : 'TV show'}`);
       return false;
     }
     
