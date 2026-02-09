@@ -9,9 +9,9 @@
         <!-- Header -->
         <div class="flex items-start justify-between mb-6">
           <div>
-            <h3 class="text-2xl font-semibold">Bulk Episode Matcher</h3>
+            <h3 class="text-2xl font-semibold">Episode Files</h3>
             <p class="text-sm text-gray-400 mt-1">
-              Match {{ unmatchedFiles.length }} unmatched files to episodes
+              {{ matchedFiles.length }} matched • {{ unmatchedFiles.length }} unmatched • {{ allFiles.length }} total
             </p>
           </div>
           <button
@@ -22,246 +22,179 @@
           </button>
         </div>
 
-        <!-- Steps -->
-        <div class="mb-6">
-          <div class="flex items-center gap-2 text-sm">
-            <div
-              :class="[
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all',
-                step >= 1 ? 'bg-primary-500/20 text-primary-400' : 'bg-gray-800 text-gray-500'
-              ]"
-            >
-              <Icon :name="step > 1 ? 'mdi:check-circle' : 'mdi:numeric-1-circle'" class="w-5 h-5" />
-              <span>Select Sample</span>
-            </div>
-            <Icon name="mdi:chevron-right" class="w-4 h-4 text-gray-600" />
-            <div
-              :class="[
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all',
-                step >= 2 ? 'bg-primary-500/20 text-primary-400' : 'bg-gray-800 text-gray-500'
-              ]"
-            >
-              <Icon :name="step > 2 ? 'mdi:check-circle' : 'mdi:numeric-2-circle'" class="w-5 h-5" />
-              <span>Detect Pattern</span>
-            </div>
-            <Icon name="mdi:chevron-right" class="w-4 h-4 text-gray-600" />
-            <div
-              :class="[
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all',
-                step >= 3 ? 'bg-primary-500/20 text-primary-400' : 'bg-gray-800 text-gray-500'
-              ]"
-            >
-              <Icon :name="step > 3 ? 'mdi:check-circle' : 'mdi:numeric-3-circle'" class="w-5 h-5" />
-              <span>Review & Apply</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 1: Select Sample File -->
-        <div v-if="step === 1" class="space-y-4">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-medium">Select a sample file to detect pattern</h4>
-            <button
-              @click="autoMatch"
-              :disabled="loading"
-              class="btn btn-secondary btn-sm"
-            >
-              <Icon name="mdi:auto-fix" class="w-4 h-4" />
-              Auto-match All
-            </button>
-          </div>
-
-          <div class="space-y-2 max-h-96 overflow-y-auto">
-            <button
-              v-for="file in unmatchedFiles"
-              :key="file.id"
-              @click="selectSample(file)"
-              :disabled="loading"
-              class="w-full card p-3 hover:border-primary-500/50 transition-colors text-left flex items-center gap-3"
-            >
-              <Icon name="mdi:file-video" class="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <div class="flex-1 min-w-0">
-                <p class="font-mono text-sm truncate">{{ file.filename }}</p>
-                <div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                  <span v-if="file.parsedSeason">Season {{ file.parsedSeason }}</span>
-                  <span v-if="file.parsedEpisode">Episode {{ file.parsedEpisode }}</span>
-                  <span>{{ formatFileSize(file.size) }}</span>
-                </div>
-              </div>
-              <Icon name="mdi:chevron-right" class="w-5 h-5 text-gray-500 flex-shrink-0" />
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 2: Pattern Detection -->
-        <div v-if="step === 2 && detectedPattern" class="space-y-4">
-          <div class="card p-4 bg-primary-500/10 border-primary-500/30">
-            <div class="flex items-start gap-3">
-              <Icon name="mdi:check-circle" class="w-6 h-6 text-primary-400 flex-shrink-0 mt-0.5" />
-              <div class="flex-1">
-                <h4 class="font-medium text-primary-400 mb-1">Pattern Detected: {{ detectedPattern.patternName }}</h4>
-                <p class="text-sm text-gray-300 font-mono mb-2">{{ sampleFile?.filename }}</p>
-                <div class="flex items-center gap-4 text-sm">
-                  <span class="text-gray-400">Season: <span class="text-white">{{ detectedPattern.example.season }}</span></span>
-                  <span class="text-gray-400">Episode: <span class="text-white">{{ detectedPattern.example.episode }}</span></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="card p-4">
-            <h5 class="font-medium mb-2">Pattern Details</h5>
-            <div class="space-y-2 text-sm font-mono">
-              <div>
-                <span class="text-gray-500">Regex:</span>
-                <span class="ml-2 text-primary-400">{{ detectedPattern.regex }}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Season Group:</span>
-                <span class="ml-2 text-white">{{ detectedPattern.seasonGroup }}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Episode Group:</span>
-                <span class="ml-2 text-white">{{ detectedPattern.episodeGroup }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex gap-3">
-            <button
-              @click="step = 1"
-              class="btn btn-secondary flex-1"
-            >
-              <Icon name="mdi:arrow-left" class="w-4 h-4" />
-              Back
-            </button>
-            <button
-              @click="previewMatches"
-              :disabled="loading"
-              class="btn btn-primary flex-1"
-            >
-              <Icon name="mdi:eye" class="w-4 h-4" />
-              Preview Matches
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 2: No Pattern Detected -->
-        <div v-if="step === 2 && !detectedPattern" class="space-y-4">
-          <div class="card p-6 bg-yellow-500/10 border-yellow-500/30 text-center">
-            <Icon name="mdi:alert" class="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-            <h4 class="font-medium text-yellow-400 mb-2">Pattern Not Detected</h4>
-            <p class="text-sm text-gray-400">
-              Could not automatically detect a season/episode pattern in the filename.
-              <br />
-              Please try a different file or use manual pattern entry.
-            </p>
-          </div>
-
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6 border-b border-gray-800">
           <button
-            @click="step = 1"
-            class="btn btn-secondary w-full"
+            @click="activeTab = 'unmatched'"
+            :class="[
+              'px-4 py-2 font-medium transition-colors relative',
+              activeTab === 'unmatched' 
+                ? 'text-primary-400' 
+                : 'text-gray-500 hover:text-gray-300'
+            ]"
           >
-            <Icon name="mdi:arrow-left" class="w-4 h-4" />
-            Try Another File
+            Unmatched ({{ unmatchedFiles.length }})
+            <div
+              v-if="activeTab === 'unmatched'"
+              class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
+            />
+          </button>
+          <button
+            @click="activeTab = 'matched'"
+            :class="[
+              'px-4 py-2 font-medium transition-colors relative',
+              activeTab === 'matched' 
+                ? 'text-primary-400' 
+                : 'text-gray-500 hover:text-gray-300'
+            ]"
+          >
+            Matched ({{ matchedFiles.length }})
+            <div
+              v-if="activeTab === 'matched'"
+              class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
+            />
+          </button>
+          <button
+            @click="activeTab = 'bulk'"
+            :class="[
+              'px-4 py-2 font-medium transition-colors relative',
+              activeTab === 'bulk' 
+                ? 'text-primary-400' 
+                : 'text-gray-500 hover:text-gray-300'
+            ]"
+          >
+            Bulk Match
+            <div
+              v-if="activeTab === 'bulk'"
+              class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
+            />
           </button>
         </div>
 
-        <!-- Step 3: Preview & Apply -->
-        <div v-if="step === 3 && matchResults" class="space-y-4">
-          <!-- Summary -->
-          <div class="grid grid-cols-3 gap-3">
-            <div class="card p-4 text-center">
-              <div class="text-2xl font-bold text-green-400">{{ matchResults.matched }}</div>
-              <div class="text-xs text-gray-500 mt-1">Matched</div>
-            </div>
-            <div class="card p-4 text-center">
-              <div class="text-2xl font-bold text-red-400">{{ matchResults.failed }}</div>
-              <div class="text-xs text-gray-500 mt-1">Failed</div>
-            </div>
-            <div class="card p-4 text-center">
-              <div class="text-2xl font-bold text-gray-400">{{ matchResults.total }}</div>
-              <div class="text-xs text-gray-500 mt-1">Total</div>
-            </div>
+        <!-- Unmatched Files Tab -->
+        <div v-if="activeTab === 'unmatched'" class="space-y-3">
+          <div v-if="unmatchedFiles.length === 0" class="text-center py-12">
+            <Icon name="mdi:check-circle" class="w-16 h-16 text-green-400 mx-auto mb-3" />
+            <p class="text-gray-400">All files are matched!</p>
           </div>
 
-          <!-- Matched Files -->
-          <div v-if="matchResults.results.matched.length > 0" class="space-y-2">
-            <h4 class="font-medium text-green-400 flex items-center gap-2">
-              <Icon name="mdi:check-circle" class="w-5 h-5" />
-              Successfully Matched ({{ matchResults.results.matched.length }})
-            </h4>
-            <div class="max-h-64 overflow-y-auto space-y-1">
-              <div
-                v-for="match in matchResults.results.matched.slice(0, 20)"
-                :key="match.fileId"
-                class="card p-2 text-sm"
-              >
-                <div class="flex items-center gap-2">
-                  <Icon name="mdi:check" class="w-4 h-4 text-green-400 flex-shrink-0" />
-                  <span class="font-mono flex-1 truncate">{{ match.filename }}</span>
-                  <span class="text-xs text-gray-500">
-                    S{{ match.season.toString().padStart(2, '0') }}E{{ match.episode.toString().padStart(2, '0') }}
-                  </span>
-                  <span class="text-xs text-gray-400 max-w-xs truncate">{{ match.episodeName }}</span>
+          <div
+            v-for="file in unmatchedFiles"
+            :key="file.id"
+            class="card p-4"
+          >
+            <div class="flex items-start gap-3">
+              <Icon name="mdi:file-video" class="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <p class="font-mono text-sm mb-2 truncate">{{ file.filename }}</p>
+                <div class="flex items-center gap-3 text-xs text-gray-500">
+                  <span>{{ formatFileSize(file.size) }}</span>
+                  <span v-if="file.parsedSeason">Detected: S{{ file.parsedSeason.toString().padStart(2, '0') }}E{{ file.parsedEpisode?.toString().padStart(2, '0') }}</span>
                 </div>
               </div>
-              <div v-if="matchResults.results.matched.length > 20" class="text-center text-xs text-gray-500 py-2">
-                ... and {{ matchResults.results.matched.length - 20 }} more
+              <div class="flex items-center gap-2">
+                <!-- Season/Episode Inputs -->
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model="file.manualSeason"
+                    type="number"
+                    min="1"
+                    placeholder="S"
+                    class="w-16 px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-center"
+                  />
+                  <span class="text-gray-600">x</span>
+                  <input
+                    v-model="file.manualEpisode"
+                    type="number"
+                    min="1"
+                    placeholder="E"
+                    class="w-16 px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-center"
+                  />
+                </div>
+                <button
+                  @click="matchSingleFile(file)"
+                  :disabled="!file.manualSeason || !file.manualEpisode"
+                  class="btn btn-sm btn-primary"
+                >
+                  <Icon name="mdi:link" class="w-4 h-4" />
+                  Match
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Failed Files -->
-          <div v-if="matchResults.results.failed.length > 0" class="space-y-2">
-            <h4 class="font-medium text-red-400 flex items-center gap-2">
-              <Icon name="mdi:alert-circle" class="w-5 h-5" />
-              Failed to Match ({{ matchResults.results.failed.length }})
-            </h4>
-            <div class="max-h-64 overflow-y-auto space-y-1">
-              <div
-                v-for="fail in matchResults.results.failed.slice(0, 10)"
-                :key="fail.fileId"
-                class="card p-2 text-sm"
-              >
-                <div class="flex items-center gap-2">
-                  <Icon name="mdi:close" class="w-4 h-4 text-red-400 flex-shrink-0" />
-                  <span class="font-mono flex-1 truncate">{{ fail.filename }}</span>
-                  <span class="text-xs text-gray-500">{{ fail.reason }}</span>
+        <!-- Matched Files Tab -->
+        <div v-if="activeTab === 'matched'" class="space-y-3">
+          <div v-if="matchedFiles.length === 0" class="text-center py-12">
+            <Icon name="mdi:alert-circle" class="w-16 h-16 text-gray-600 mx-auto mb-3" />
+            <p class="text-gray-400">No matched files yet</p>
+          </div>
+
+          <div
+            v-for="file in matchedFiles"
+            :key="file.id"
+            class="card p-4"
+          >
+            <div class="flex items-start gap-3">
+              <Icon name="mdi:check-circle" class="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <p class="font-mono text-sm mb-2 truncate">{{ file.filename }}</p>
+                <div class="flex items-center gap-3 text-xs text-gray-500">
+                  <span>{{ formatFileSize(file.size) }}</span>
+                  <span class="text-green-400">S{{ file.season.toString().padStart(2, '0') }}E{{ file.episode.toString().padStart(2, '0') }}</span>
                 </div>
               </div>
-              <div v-if="matchResults.results.failed.length > 10" class="text-center text-xs text-gray-500 py-2">
-                ... and {{ matchResults.results.failed.length - 10 }} more
-              </div>
+              <button
+                @click="unmatchFile(file)"
+                class="btn btn-sm btn-secondary"
+              >
+                <Icon name="mdi:link-off" class="w-4 h-4" />
+                Unmatch
+              </button>
             </div>
           </div>
+        </div>
 
-          <!-- Actions -->
-          <div class="flex gap-3 pt-4 border-t border-gray-800">
+        <!-- Bulk Match Tab -->
+        <div v-if="activeTab === 'bulk'" class="space-y-4">
+          <!-- Auto Match Button -->
+          <div class="flex items-center justify-between p-4 card">
+            <div>
+              <h4 class="font-medium mb-1">Auto-Match All</h4>
+              <p class="text-sm text-gray-400">Automatically detect and match all unmatched files</p>
+            </div>
             <button
-              @click="step = 2"
-              class="btn btn-secondary flex-1"
+              @click="autoMatch"
+              :disabled="loading || unmatchedFiles.length === 0"
+              class="btn btn-primary"
             >
-              <Icon name="mdi:arrow-left" class="w-4 h-4" />
-              Back
+              <Icon name="mdi:auto-fix" class="w-4 h-4" />
+              Auto-Match {{ unmatchedFiles.length }} Files
             </button>
-            <button
-              v-if="!matchResults.results.matched[0]?.updated"
-              @click="applyMatches"
-              :disabled="loading || matchResults.matched === 0"
-              class="btn btn-primary flex-1"
-            >
-              <Icon name="mdi:check-all" class="w-4 h-4" />
-              Apply {{ matchResults.matched }} Matches
-            </button>
-            <button
-              v-else
-              @click="finish"
-              class="btn btn-primary flex-1"
-            >
-              <Icon name="mdi:check" class="w-4 h-4" />
-              Done
-            </button>
+          </div>
+
+          <!-- Pattern-Based Matching -->
+          <div class="card p-4">
+            <h4 class="font-medium mb-3">Pattern-Based Matching</h4>
+            <p class="text-sm text-gray-400 mb-4">Select a sample file to detect the naming pattern</p>
+
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+              <button
+                v-for="file in unmatchedFiles.slice(0, 10)"
+                :key="file.id"
+                @click="selectSample(file)"
+                :disabled="loading"
+                class="w-full card p-3 hover:border-primary-500/50 transition-colors text-left flex items-center gap-3"
+              >
+                <Icon name="mdi:file-video" class="w-4 h-4 text-gray-500 flex-shrink-0" />
+                <span class="font-mono text-sm flex-1 truncate">{{ file.filename }}</span>
+                <Icon name="mdi:chevron-right" class="w-4 h-4 text-gray-500 flex-shrink-0" />
+              </button>
+              <p v-if="unmatchedFiles.length > 10" class="text-xs text-gray-500 text-center py-2">
+                ... and {{ unmatchedFiles.length - 10 }} more files
+              </p>
+            </div>
           </div>
         </div>
 
@@ -291,130 +224,92 @@ const emit = defineEmits<{
 const config = useRuntimeConfig();
 const toast = useToast();
 
-const step = ref(1);
+const activeTab = ref<'unmatched' | 'matched' | 'bulk'>('unmatched');
 const loading = ref(false);
 const loadingMessage = ref('');
+const allFiles = ref<any[]>([]);
+const matchedFiles = ref<any[]>([]);
 const unmatchedFiles = ref<any[]>([]);
-const sampleFile = ref<any | null>(null);
-const detectedPattern = ref<any | null>(null);
-const matchResults = ref<any | null>(null);
 
-// Fetch unmatched files
-const fetchUnmatchedFiles = async () => {
+// Fetch all files
+const fetchFiles = async () => {
   loading.value = true;
-  loadingMessage.value = 'Loading unmatched files...';
+  loadingMessage.value = 'Loading files...';
   
   try {
     const response = await $fetch<any>(
-      `${config.public.apiBase}/api/episode-matcher/${props.mediaId}/unmatched-files`
+      `${config.public.apiBase}/api/episode-matcher/${props.mediaId}/files`
     );
     
-    unmatchedFiles.value = response.unmatchedFiles;
+    allFiles.value = response.allFiles.map((f: any) => ({
+      ...f,
+      manualSeason: f.parsedSeason || '',
+      manualEpisode: f.parsedEpisode || '',
+    }));
+    matchedFiles.value = response.matchedFiles;
+    unmatchedFiles.value = response.unmatchedFiles.map((f: any) => ({
+      ...f,
+      manualSeason: f.parsedSeason || '',
+      manualEpisode: f.parsedEpisode || '',
+    }));
     
-    if (unmatchedFiles.value.length === 0) {
-      toast.success('No unmatched files found!');
-      emit('update:modelValue', false);
-    }
   } catch (err: any) {
-    console.error('Failed to fetch unmatched files:', err);
-    toast.error('Failed to load unmatched files');
+    console.error('Failed to fetch files:', err);
+    toast.error('Failed to load files');
   } finally {
     loading.value = false;
   }
 };
 
-// Select sample file and detect pattern
-const selectSample = async (file: any) => {
-  sampleFile.value = file;
+// Match a single file
+const matchSingleFile = async (file: any) => {
   loading.value = true;
-  loadingMessage.value = 'Detecting pattern...';
+  loadingMessage.value = 'Matching file...';
   
   try {
-    const response = await $fetch<any>(
-      `${config.public.apiBase}/api/episode-matcher/${props.mediaId}/analyze-pattern`,
+    await $fetch(
+      `${config.public.apiBase}/api/episode-matcher/file/${file.id}/match`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sampleFile: file.path,
+          season: parseInt(file.manualSeason),
+          episode: parseInt(file.manualEpisode),
         }),
       }
     );
     
-    if (response.detected) {
-      detectedPattern.value = response;
-      step.value = 2;
-    } else {
-      detectedPattern.value = null;
-      step.value = 2;
-      toast.warning('Could not detect pattern automatically');
-    }
-  } catch (err: any) {
-    console.error('Pattern detection failed:', err);
-    toast.error('Failed to detect pattern');
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Preview matches
-const previewMatches = async () => {
-  loading.value = true;
-  loadingMessage.value = 'Previewing matches...';
-  
-  try {
-    const response = await $fetch<any>(
-      `${config.public.apiBase}/api/episode-matcher/${props.mediaId}/apply-pattern`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          regex: detectedPattern.value!.regex,
-          seasonGroup: detectedPattern.value!.seasonGroup,
-          episodeGroup: detectedPattern.value!.episodeGroup,
-          flags: detectedPattern.value!.flags,
-          autoMatch: false, // Just preview, don't apply yet
-        }),
-      }
-    );
-    
-    matchResults.value = response;
-    step.value = 3;
-  } catch (err: any) {
-    console.error('Preview failed:', err);
-    toast.error('Failed to preview matches');
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Apply matches
-const applyMatches = async () => {
-  loading.value = true;
-  loadingMessage.value = 'Applying matches...';
-  
-  try {
-    const response = await $fetch<any>(
-      `${config.public.apiBase}/api/episode-matcher/${props.mediaId}/apply-pattern`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          regex: detectedPattern.value!.regex,
-          seasonGroup: detectedPattern.value!.seasonGroup,
-          episodeGroup: detectedPattern.value!.episodeGroup,
-          flags: detectedPattern.value!.flags,
-          autoMatch: true, // Actually apply the matches
-        }),
-      }
-    );
-    
-    matchResults.value = response;
-    toast.success(`Successfully matched ${response.matched} files!`);
+    toast.success(`Matched ${file.filename} to S${file.manualSeason.toString().padStart(2, '0')}E${file.manualEpisode.toString().padStart(2, '0')}`);
+    await fetchFiles();
     emit('matched');
   } catch (err: any) {
-    console.error('Apply failed:', err);
-    toast.error('Failed to apply matches');
+    console.error('Failed to match file:', err);
+    toast.error('Failed to match file');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Unmatch a file
+const unmatchFile = async (file: any) => {
+  loading.value = true;
+  loadingMessage.value = 'Unmatching file...';
+  
+  try {
+    await $fetch(
+      `${config.public.apiBase}/api/episode-matcher/file/${file.id}/unmatch`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    
+    toast.success(`Unmatched ${file.filename}`);
+    await fetchFiles();
+    emit('matched');
+  } catch (err: any) {
+    console.error('Failed to unmatch file:', err);
+    toast.error('Failed to unmatch file');
   } finally {
     loading.value = false;
   }
@@ -438,11 +333,8 @@ const autoMatch = async () => {
     
     if (response.matched > 0) {
       emit('matched');
-      emit('update:modelValue', false);
-    } else if (response.failed > 0) {
-      // Show failed files and let user try manual pattern matching
-      matchResults.value = response;
-      step.value = 3;
+      await fetchFiles();
+      activeTab.value = 'matched';
     }
   } catch (err: any) {
     console.error('Auto-match failed:', err);
@@ -452,8 +344,9 @@ const autoMatch = async () => {
   }
 };
 
-const finish = () => {
-  emit('update:modelValue', false);
+// Select sample for pattern detection (placeholder - can implement later)
+const selectSample = async (file: any) => {
+  toast.info('Pattern detection not yet implemented in simplified UI');
 };
 
 const formatFileSize = (bytes: number) => {
@@ -466,11 +359,8 @@ const formatFileSize = (bytes: number) => {
 // Load files when modal opens
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    step.value = 1;
-    sampleFile.value = null;
-    detectedPattern.value = null;
-    matchResults.value = null;
-    fetchUnmatchedFiles();
+    activeTab.value = 'unmatched';
+    fetchFiles();
   }
 });
 </script>

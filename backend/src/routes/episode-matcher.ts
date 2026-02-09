@@ -1,18 +1,16 @@
 import { Hono } from 'hono';
 import { db } from '../db';
-import { files, episodes, mediaItems } from '../db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { files, mediaItems } from '../db/schema';
+import { eq, and, isNull, or } from 'drizzle-orm';
 import { parseMediaFile, parseMediaPath } from '../lib/parser';
-import { readdirSync, statSync } from 'fs';
-import { join } from 'path';
 
 const router = new Hono();
 
 /**
- * GET /api/episode-matcher/:mediaId/unmatched-files
- * Get all unmatched files for a TV show
+ * GET /api/episode-matcher/:mediaId/files
+ * Get all files for a TV show with their match status
  */
-router.get('/:mediaId/unmatched-files', async (c) => {
+router.get('/:mediaId/files', async (c) => {
   const mediaId = parseInt(c.req.param('mediaId'));
   
   const media = await db.query.mediaItems.findFirst({
@@ -23,27 +21,30 @@ router.get('/:mediaId/unmatched-files', async (c) => {
     return c.json({ error: 'TV show not found' }, 404);
   }
   
-  // Get all files for this media that aren't matched to episodes
-  const unmatchedFiles = await db.query.files.findMany({
-    where: and(
-      eq(files.mediaId, mediaId),
-      isNull(files.episodeId)
-    ),
+  // Get ALL files for this media
+  const allFiles = await db.query.files.findMany({
+    where: eq(files.mediaItemId, mediaId),
   });
   
   // Parse each file to extract potential season/episode info
-  const parsed = unmatchedFiles.map(file => {
+  const parsed = allFiles.map(file => {
     const parsed = parseMediaPath(file.path);
     return {
       id: file.id,
       path: file.path,
       filename: file.path.split('/').pop(),
       size: file.size,
-      parsedSeason: parsed.season,
-      parsedEpisode: parsed.episode,
+      season: file.parsedSeason,
+      episode: file.parsedEpisode,
+      parsedSeason: parsed.season || file.parsedSeason,
+      parsedEpisode: parsed.episode || file.parsedEpisode,
       parsedTitle: parsed.title,
+      isMatched: file.parsedSeason !== null && file.parsedEpisode !== null,
     };
   });
+  
+  const matched = parsed.filter(f => f.isMatched);
+  const unmatched = parsed.filter(f => !f.isMatched);
   
   return c.json({
     media: {
@@ -51,8 +52,12 @@ router.get('/:mediaId/unmatched-files', async (c) => {
       title: media.title,
       tmdbId: media.tmdbId,
     },
-    unmatchedFiles: parsed,
+    allFiles: parsed,
+    matchedFiles: matched,
+    unmatchedFiles: unmatched,
     totalCount: parsed.length,
+    matchedCount: matched.length,
+    unmatchedCount: unmatched.length,
   });
 });
 
@@ -111,8 +116,8 @@ router.post('/:mediaId/analyze-pattern', async (c) => {
         episodeGroup: pattern.episodeGroup,
         example: {
           filename,
-          season: parseInt(match[pattern.seasonGroup]),
-          episode: parseInt(match[pattern.episodeGroup]),
+          parsedSeason: parseInt(match[pattern.seasonGroup]),
+          parsedEpisode: parseInt(match[pattern.episodeGroup]),
         },
       });
     }
@@ -126,7 +131,7 @@ router.post('/:mediaId/analyze-pattern', async (c) => {
 
 /**
  * POST /api/episode-matcher/:mediaId/apply-pattern
- * Apply pattern to all unmatched files and match to episodes
+ * Apply pattern to all unmatched files and update season/episode
  * Body: { regex: string, seasonGroup: number, episodeGroup: number, autoMatch: boolean }
  */
 router.post('/:mediaId/apply-pattern', async (c) => {
@@ -148,14 +153,12 @@ router.post('/:mediaId/apply-pattern', async (c) => {
   // Get all unmatched files
   const unmatchedFiles = await db.query.files.findMany({
     where: and(
-      eq(files.mediaId, mediaId),
-      isNull(files.episodeId)
+      eq(files.mediaItemId, mediaId),
+      or(
+        isNull(files.season),
+        isNull(files.episode)
+      )
     ),
-  });
-  
-  // Get all episodes for this show
-  const allEpisodes = await db.query.episodes.findMany({
-    where: eq(episodes.mediaId, mediaId),
   });
   
   const pattern = new RegExp(regex, flags || 'i');
@@ -189,26 +192,13 @@ router.post('/:mediaId/apply-pattern', async (c) => {
       continue;
     }
     
-    // Find matching episode
-    const matchingEpisode = allEpisodes.find(
-      ep => ep.seasonNumber === season && ep.episodeNumber === episode
-    );
-    
-    if (!matchingEpisode) {
-      results.failed.push({
-        fileId: file.id,
-        filename,
-        season,
-        episode,
-        reason: `Episode S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')} not found in database`,
-      });
-      continue;
-    }
-    
     if (autoMatch) {
-      // Update file to link to episode
+      // Update file with season/episode
       await db.update(files)
-        .set({ episodeId: matchingEpisode.id })
+        .set({ 
+          parsedSeason: season,
+          parsedEpisode: episode,
+        })
         .where(eq(files.id, file.id));
     }
     
@@ -217,8 +207,7 @@ router.post('/:mediaId/apply-pattern', async (c) => {
       filename,
       season,
       episode,
-      episodeId: matchingEpisode.id,
-      episodeName: matchingEpisode.name,
+      episodeName: `S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}`,
       updated: autoMatch,
     });
   }
@@ -249,14 +238,12 @@ router.post('/:mediaId/auto-match', async (c) => {
   // Get all unmatched files
   const unmatchedFiles = await db.query.files.findMany({
     where: and(
-      eq(files.mediaId, mediaId),
-      isNull(files.episodeId)
+      eq(files.mediaItemId, mediaId),
+      or(
+        isNull(files.season),
+        isNull(files.episode)
+      )
     ),
-  });
-  
-  // Get all episodes
-  const allEpisodes = await db.query.episodes.findMany({
-    where: eq(episodes.mediaId, mediaId),
   });
   
   const results = {
@@ -276,33 +263,20 @@ router.post('/:mediaId/auto-match', async (c) => {
       continue;
     }
     
-    const matchingEpisode = allEpisodes.find(
-      ep => ep.seasonNumber === parsed.season && ep.episodeNumber === parsed.episode
-    );
-    
-    if (!matchingEpisode) {
-      results.failed.push({
-        fileId: file.id,
-        filename: file.path.split('/').pop(),
-        season: parsed.season,
-        episode: parsed.episode,
-        reason: `Episode S${parsed.season.toString().padStart(2, '0')}E${parsed.episode.toString().padStart(2, '0')} not found`,
-      });
-      continue;
-    }
-    
-    // Match!
+    // Match! Update the file
     await db.update(files)
-      .set({ episodeId: matchingEpisode.id })
+      .set({ 
+        parsedSeason: parsed.season,
+        parsedEpisode: parsed.episode,
+      })
       .where(eq(files.id, file.id));
     
     results.matched.push({
       fileId: file.id,
       filename: file.path.split('/').pop(),
-      season: parsed.season,
-      episode: parsed.episode,
-      episodeId: matchingEpisode.id,
-      episodeName: matchingEpisode.name,
+      parsedSeason: parsed.season,
+      parsedEpisode: parsed.episode,
+      episodeName: `S${parsed.season.toString().padStart(2, '0')}E${parsed.episode.toString().padStart(2, '0')}`,
     });
   }
   
@@ -311,6 +285,74 @@ router.post('/:mediaId/auto-match', async (c) => {
     matched: results.matched.length,
     failed: results.failed.length,
     results,
+  });
+});
+
+/**
+ * POST /api/episode-matcher/file/:fileId/match
+ * Match a single file to season/episode
+ * Body: { season: number, episode: number }
+ */
+router.post('/file/:fileId/match', async (c) => {
+  const fileId = parseInt(c.req.param('fileId'));
+  const { season, episode } = await c.req.json();
+  
+  if (season === undefined || episode === undefined) {
+    return c.json({ error: 'season and episode are required' }, 400);
+  }
+  
+  const file = await db.query.files.findFirst({
+    where: eq(files.id, fileId),
+  });
+  
+  if (!file) {
+    return c.json({ error: 'File not found' }, 404);
+  }
+  
+  // Update file with season/episode
+  await db.update(files)
+    .set({ 
+      parsedSeason: parseInt(season.toString()),
+      parsedEpisode: parseInt(episode.toString()),
+    })
+    .where(eq(files.id, fileId));
+  
+  return c.json({
+    success: true,
+    fileId,
+    season,
+    episode,
+    filename: file.path.split('/').pop(),
+  });
+});
+
+/**
+ * POST /api/episode-matcher/file/:fileId/unmatch
+ * Remove season/episode match from a file
+ */
+router.post('/file/:fileId/unmatch', async (c) => {
+  const fileId = parseInt(c.req.param('fileId'));
+  
+  const file = await db.query.files.findFirst({
+    where: eq(files.id, fileId),
+  });
+  
+  if (!file) {
+    return c.json({ error: 'File not found' }, 404);
+  }
+  
+  // Clear season/episode
+  await db.update(files)
+    .set({ 
+      parsedSeason: null,
+      parsedEpisode: null,
+    })
+    .where(eq(files.id, fileId));
+  
+  return c.json({
+    success: true,
+    fileId,
+    filename: file.path.split('/').pop(),
   });
 });
 
