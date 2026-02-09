@@ -8,7 +8,7 @@
     >
       <div
         v-if="show"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 overflow-y-auto"
         @click.self="$emit('close')"
       >
         <div class="min-h-screen px-4 py-8 flex items-center justify-center">

@@ -8,7 +8,7 @@
     >
       <div
         v-if="show"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 flex items-center justify-center p-4"
         @click.self="$emit('close')"
       >
         <Transition

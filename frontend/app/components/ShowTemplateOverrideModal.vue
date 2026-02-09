@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="modelValue"
-      class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/70 flex items-center justify-center z-60 p-4"
       @click.self="close"
     >
       <div class="card p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
