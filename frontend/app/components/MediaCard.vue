@@ -245,11 +245,10 @@
 
     <!-- TMDB Identify Modal -->
     <TmdbIdentifyModal
-      v-if="showIdentifyModal"
+      v-model="showIdentifyModal"
       :media-id="media.id"
       :initial-query="media.title"
       :type="media.type === 'tv' ? 'tv' : 'movie'"
-      @close="showIdentifyModal = false"
       @identify="handleIdentifySuccess"
     />
   </div>
