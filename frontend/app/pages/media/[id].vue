@@ -152,6 +152,14 @@
               <Icon name="mdi:download" class="w-5 h-5 mr-2" />
               Search Downloads
             </button>
+            <button 
+              v-if="media?.type === 'tv'"
+              @click="showEpisodeMatcherModal = true" 
+              class="btn btn-secondary"
+            >
+              <Icon name="mdi:file-link" class="w-5 h-5 mr-2" />
+              Match Episodes
+            </button>
             <button @click="refreshMetadata" :disabled="refreshing" class="btn btn-secondary">
               <Icon
                 :name="refreshing ? 'mdi:loading' : 'mdi:refresh'"
@@ -389,6 +397,14 @@
       @identified="handleIdentify"
     />
 
+    <!-- Episode Matcher Modal -->
+    <EpisodeMatcherModal
+      v-if="media?.id"
+      v-model="showEpisodeMatcherModal"
+      :media-id="media.id"
+      @matched="handleEpisodesMatched"
+    />
+
     <!-- Delete Modal -->
     <Teleport to="body">
       <div
@@ -493,6 +509,14 @@ const handleIdentify = async (tmdbId: number, type: 'movie' | 'tv') => {
   } catch (err: any) {
     toast.error(`Failed to identify: ${err.message}`);
   }
+};
+
+// Episode Matcher modal
+const showEpisodeMatcherModal = ref(false);
+
+const handleEpisodesMatched = async () => {
+  await refresh();
+  toast.success('Episodes matched successfully');
 };
 
 // Torrent search modal
