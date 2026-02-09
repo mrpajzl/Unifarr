@@ -4,6 +4,7 @@ import { db } from '../db';
 import { files, mediaItems } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { parseMediaFolderName, parseMediaPath } from '../lib/parser';
+import { getTMDBService } from '../routes/settings';
 
 export interface FolderScanResult {
   scanned: number;
@@ -195,7 +196,13 @@ export class FolderScanner {
             }).returning();
             mediaItem = newItem;
             result.added++;
-            console.log(`✨ Created TV show: ${folderParsed.title} (empty folder)`);
+            console.log(`✨ Created TV show: ${folderParsed.title}`);
+            
+            // Auto-identify with TMDB
+            await this.autoIdentifyShow(mediaItem, folderParsed.title, folderParsed.year);
+          } else if (!mediaItem.tmdbId) {
+            // Existing item without TMDB ID - try to auto-identify
+            await this.autoIdentifyShow(mediaItem, folderParsed.title, folderParsed.year);
           }
           
           // If no video files, we're done with this show
@@ -289,6 +296,64 @@ export class FolderScanner {
     }
     
     return result;
+  }
+  
+  /**
+   * Auto-identify TV show with TMDB
+   */
+  private async autoIdentifyShow(mediaItem: any, title: string, year?: number): Promise<void> {
+    // Skip if already has TMDB ID
+    if (mediaItem.tmdbId) {
+      return;
+    }
+    
+    try {
+      const tmdb = await getTMDBService();
+      if (!tmdb) return;
+      
+      // Search TMDB for the show
+      const searchResults = await tmdb.searchTVShows(title, year);
+      
+      if (searchResults.length === 0) {
+        console.log(`   ⚠️ No TMDB results for "${title}"`);
+        return;
+      }
+      
+      // Auto-match if first result matches title and year (if provided)
+      const firstResult = searchResults[0];
+      const yearMatch = !year || !firstResult.year || firstResult.year === year;
+      
+      if (yearMatch) {
+        // Check if this TMDB ID is already used by another show
+        const existingShow = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.tmdbId, firstResult.id),
+        });
+        
+        if (existingShow) {
+          console.log(`   ⚠️ TMDB ID ${firstResult.id} already used by "${existingShow.title}" - skipping`);
+          return;
+        }
+        
+        console.log(`   🎬 Auto-matched to TMDB: "${firstResult.name}" (${firstResult.year}) ID: ${firstResult.id}`);
+        
+        // Update media item with TMDB data
+        await db.update(mediaItems)
+          .set({
+            tmdbId: firstResult.id,
+            title: firstResult.name,
+            year: firstResult.year,
+            overview: firstResult.overview,
+            posterPath: firstResult.poster_path,
+            backdropPath: firstResult.backdrop_path,
+            voteAverage: firstResult.vote_average,
+          })
+          .where(eq(mediaItems.id, mediaItem.id));
+      } else {
+        console.log(`   ⚠️ Year mismatch for "${title}" (${year} vs ${firstResult.year}) - skipping auto-match`);
+      }
+    } catch (error: any) {
+      console.error(`   ❌ Auto-identify failed for "${title}":`, error.message);
+    }
   }
   
   /**
