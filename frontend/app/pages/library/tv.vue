@@ -397,9 +397,33 @@ const getFirstLetter = (title: string): string => {
   return /[A-Z]/.test(first) ? first : '#';
 };
 
-const jumpToLetter = (letter: string) => {
+const jumpToLetter = async (letter: string) => {
   currentLetter.value = letter;
   
+  // Find index of first show starting with this letter
+  const targetIndex = filteredShows.value.findIndex(show => 
+    getFirstLetter(show.title) === letter
+  );
+  
+  if (targetIndex === -1) {
+    // No shows with this letter
+    currentLetter.value = '';
+    return;
+  }
+  
+  // Calculate which page this item is on
+  const targetPage = Math.ceil((targetIndex + 1) / itemsPerPage.value);
+  
+  // Load pages up to target if needed
+  if (targetPage > currentPage.value) {
+    currentPage.value = targetPage;
+    // Wait for Vue to render the new items
+    await nextTick();
+    // Small delay to ensure DOM is updated
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  // Now find and scroll to the element
   const selector = letter === '#' 
     ? '[data-letter="#"]'
     : `[data-letter="${letter}"]`;
