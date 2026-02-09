@@ -132,6 +132,10 @@
         :key="show.id"
         :media="show"
         :index="index"
+        :in-range-preview="isInRangePreview(index)"
+        @hover="handleRangeHover"
+        @leave="handleRangeLeave"
+        @range-select="handleRangeSelect"
       />
     </div>
 
@@ -218,8 +222,42 @@ const {
   selectedIdsArray,
   selectAll,
   clearSelection,
-  toggleSelectionMode
+  toggleSelectionMode,
+  toggleRangeSelection,
+  lastSelectedIndex
 } = useMediaSelection();
+
+// Range preview state
+const rangePreviewHoverIndex = ref<number | null>(null);
+
+// Check if index is in range preview
+const isInRangePreview = (index: number) => {
+  if (!selectionMode.value || rangePreviewHoverIndex.value === null || lastSelectedIndex.value === null) {
+    return false;
+  }
+  
+  const start = Math.min(lastSelectedIndex.value, rangePreviewHoverIndex.value);
+  const end = Math.max(lastSelectedIndex.value, rangePreviewHoverIndex.value);
+  
+  return index >= start && index <= end;
+};
+
+// Handle range preview on hover
+const handleRangeHover = (index: number) => {
+  rangePreviewHoverIndex.value = index;
+};
+
+const handleRangeLeave = () => {
+  rangePreviewHoverIndex.value = null;
+};
+
+// Handle range selection
+const handleRangeSelect = (endIndex: number) => {
+  if (lastSelectedIndex.value !== null) {
+    toggleRangeSelection(lastSelectedIndex.value, endIndex, filteredShows.value);
+  }
+  rangePreviewHoverIndex.value = null;
+};
 
 // Filters
 const searchQuery = ref('');

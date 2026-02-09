@@ -1,10 +1,14 @@
 <template>
   <div
     class="card overflow-hidden group cursor-pointer hover:ring-2 hover:ring-primary-600 transition-all relative"
-    :class="{ 'ring-2 ring-primary-600': selected }"
-    @click="handleCardClick"
-    @mouseenter="isHovered = true"
-    @mouseleave="isHovered = false"
+    :class="{ 
+      'ring-2 ring-primary-600': selected,
+      'ring-2 ring-primary-400/50': inRangePreview && !selected,
+      'select-none': shiftPressed
+    }"
+    @click.prevent="handleCardClick"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
   >
     <!-- Poster -->
     <div class="relative aspect-[2/3] bg-dark-800 overflow-hidden">
@@ -179,9 +183,19 @@ import type { MediaItem } from '~/types'
 interface Props {
   media: MediaItem
   index?: number
+  inRangePreview?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  inRangePreview: false
+})
+
+const emit = defineEmits<{
+  'hover': [index: number]
+  'leave': []
+  'range-select': [endIndex: number]
+}>()
+
 const tmdb = useTMDB()
 
 // Selection state
@@ -202,12 +216,29 @@ const showOptionsMenu = ref(false)
 const isMobile = ref(false)
 const isHovered = ref(false)
 
+// Shift key detection
+const shiftPressed = ref(false)
+
 onMounted(() => {
   // Simple mobile detection
   isMobile.value = window.innerWidth < 768
   window.addEventListener('resize', () => {
     isMobile.value = window.innerWidth < 768
   })
+
+  // Track shift key
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Shift') shiftPressed.value = true
+  })
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Shift') shiftPressed.value = false
+  })
+})
+
+onUnmounted(() => {
+  // Cleanup shift key listeners
+  window.removeEventListener('keydown', () => {})
+  window.removeEventListener('keyup', () => {})
 })
 
 // Show checkbox logic
@@ -220,14 +251,31 @@ const showCheckbox = computed(() => {
   }
 })
 
+// Handle mouse events for range preview
+const handleMouseEnter = () => {
+  isHovered.value = true
+  if (props.index !== undefined && selectionMode.value && shiftPressed.value) {
+    emit('hover', props.index)
+  }
+}
+
+const handleMouseLeave = () => {
+  isHovered.value = false
+  if (selectionMode.value && shiftPressed.value) {
+    emit('leave')
+  }
+}
+
 // Handle card click
 const handleCardClick = (event: MouseEvent) => {
+  // Prevent default to avoid text selection on shift+click
+  event.preventDefault()
+  
   if (selectionMode.value) {
     // In selection mode, toggle selection (support shift for range)
     if (event.shiftKey && lastSelectedIndex.value !== null && props.index !== undefined) {
-      // Range selection - need to get media items from parent
-      // For now, just toggle single
-      toggleSelection(props.media.id, props.index)
+      // Range selection - emit event to parent
+      emit('range-select', props.index)
     } else {
       toggleSelection(props.media.id, props.index)
     }
@@ -239,9 +287,12 @@ const handleCardClick = (event: MouseEvent) => {
 
 // Handle checkbox click
 const handleCheckboxClick = (event: MouseEvent) => {
+  // Prevent default to avoid text selection
+  event.preventDefault()
+  
   if (event.shiftKey && lastSelectedIndex.value !== null && props.index !== undefined) {
-    // TODO: Range selection - needs parent to provide media array
-    toggleSelection(props.media.id, props.index)
+    // Range selection - emit event to parent
+    emit('range-select', props.index)
   } else {
     toggleSelection(props.media.id, props.index)
   }
