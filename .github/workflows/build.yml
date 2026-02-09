@@ -33,6 +33,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get version from package.json
+        id: version
+        run: echo "VERSION=$(node -p "require('./backend/package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -49,6 +53,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -75,6 +81,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get version from package.json
+        id: version
+        run: echo "VERSION=$(node -p "require('./backend/package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -92,6 +102,7 @@ jobs:
         with:
           context: ./frontend
           build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
             NUXT_PUBLIC_API_BASE=http://localhost:3002
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
