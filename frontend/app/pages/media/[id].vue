@@ -385,8 +385,8 @@
       v-model="showIdentifyModal"
       :media-id="media?.id"
       :initial-query="media?.title || ''"
-      :type="media?.type === 'tv' ? 'tv' : 'movie'"
-      @identify="handleIdentify"
+      :media-type="media?.type === 'tv' ? 'tv' : 'movie'"
+      @identified="handleIdentify"
     />
 
     <!-- Delete Modal -->
