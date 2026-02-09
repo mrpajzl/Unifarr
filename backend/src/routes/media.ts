@@ -747,9 +747,35 @@ app.post('/bulk/auto-match', async (c) => {
           console.log(`   ${idx + 1}. "${tmdbTitle}" (${result.year}) - TMDB ID: ${result.id}`);
         });
         
-        // For now, just report that we found results but need manual selection
-        console.log(`⚠️ Auto-matching skipped - manual selection recommended`);
-        results.failed.push({ id, error: 'Manual selection required' });
+        // Auto-match: take first result if year matches (or no year available)
+        const firstResult = searchResults[0];
+        const tmdbTitle = 'title' in firstResult ? firstResult.title : firstResult.name;
+        
+        // Match if years match OR if we don't have a year to compare
+        const yearMatch = !media.year || !firstResult.year || media.year === firstResult.year;
+        
+        if (yearMatch) {
+          console.log(`✅ Auto-matching to: "${tmdbTitle}" (${firstResult.year}) - TMDB ID: ${firstResult.id}`);
+          
+          // Update media with TMDB data
+          await db.update(mediaItems)
+            .set({
+              tmdbId: firstResult.id,
+              title: tmdbTitle,
+              year: firstResult.year,
+              overview: firstResult.overview,
+              posterPath: firstResult.poster_path,
+              backdropPath: firstResult.backdrop_path,
+              voteAverage: firstResult.vote_average,
+            })
+            .where(eq(mediaItems.id, id));
+          
+          console.log(`✅ Successfully matched media ${id}`);
+          results.success.push(id);
+        } else {
+          console.log(`⚠️ Year mismatch (${media.year} vs ${firstResult.year}) - manual selection recommended`);
+          results.failed.push({ id, error: 'Manual selection required - year mismatch' });
+        }
         
       } catch (error: any) {
         console.log(`❌ Failed to auto-match ${id}: ${error.message}`);

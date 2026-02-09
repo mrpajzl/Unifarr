@@ -1,6 +1,6 @@
 {
   "name": "unifarr-backend",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Unified media management backend",
   "type": "module",
   "scripts": {

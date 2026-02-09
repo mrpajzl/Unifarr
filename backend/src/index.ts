@@ -126,4 +126,5 @@ if (process.env.EPISODE_MONITOR !== 'false') {
 serve({
   fetch: app.fetch,
   port,
+  hostname: '0.0.0.0',
 });
