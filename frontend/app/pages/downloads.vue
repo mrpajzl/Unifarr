@@ -89,7 +89,7 @@
       <template v-else>
         <div
           v-for="download in activeDownloads"
-          :key="download.torrentHash"
+          :key="download.id"
           class="card p-4"
         >
         <div class="flex items-start gap-4">
@@ -158,7 +158,7 @@
           <!-- Actions -->
           <div class="flex gap-2 flex-shrink-0">
             <button
-              @click="pauseDownload(download.torrentHash)"
+              @click="pauseDownload(download.id)"
               :disabled="download.status === 'paused'"
               class="btn btn-secondary btn-sm"
               title="Pause"
@@ -166,7 +166,7 @@
               <Icon name="mdi:pause" class="w-4 h-4" />
             </button>
             <button
-              @click="resumeDownload(download.torrentHash)"
+              @click="resumeDownload(download.id)"
               :disabled="download.status !== 'paused'"
               class="btn btn-secondary btn-sm"
               title="Resume"
@@ -174,7 +174,7 @@
               <Icon name="mdi:play" class="w-4 h-4" />
             </button>
             <button
-              @click="cancelDownload(download.torrentHash)"
+              @click="cancelDownload(download.id)"
               class="btn btn-secondary btn-sm text-red-400 hover:text-red-300"
               title="Cancel"
             >
@@ -195,7 +195,7 @@
 
       <div
         v-for="(download, index) in queuedDownloads"
-        :key="download.torrentHash"
+        :key="download.id"
         class="card p-4"
       >
         <div class="flex items-center gap-4">
@@ -208,7 +208,7 @@
           </div>
 
           <button
-            @click="cancelDownload(download.torrentHash)"
+            @click="cancelDownload(download.id)"
             class="btn btn-secondary btn-sm text-red-400 hover:text-red-300"
           >
             <Icon name="mdi:delete" class="w-4 h-4" />
