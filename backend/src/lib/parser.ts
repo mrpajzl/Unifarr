@@ -175,12 +175,24 @@ export function parseMediaPath(fullPath: string): ParsedMedia {
   }
   
   // Extract season number from parent folder if not found in filename
-  // e.g., /Show Name/Season 1/Episode.mkv or /Show/S01/Episode.mkv
+  // Supports: Season 1, Season 01, Season_01, Season-01, S01, S1, etc.
   if (parsed.type === 'tv' && !parsed.season) {
-    const seasonFolderMatch = fullPath.match(/\/Season[\s._-]?(\d{1,2})\//i) || 
-                              fullPath.match(/\/S(\d{1,2})\//i);
-    if (seasonFolderMatch) {
-      parsed.season = parseInt(seasonFolderMatch[1]);
+    // Try various season folder patterns:
+    // - Season 1, Season 01, Season.01, Season-01, Season_01
+    // - S01, S1
+    const seasonPatterns = [
+      /\/Season[\s._-]*(\d{1,2})\//i,  // Season 1, Season 01, Season-01, etc.
+      /\/S(\d{1,2})\//i,                 // S01, S1
+      /\/Season[\s._-]*(\d{1,2})$/i,   // Season 1 at end of path (no trailing /)
+      /\/S(\d{1,2})$/i,                  // S01 at end of path
+    ];
+    
+    for (const pattern of seasonPatterns) {
+      const match = fullPath.match(pattern);
+      if (match) {
+        parsed.season = parseInt(match[1]);
+        break;
+      }
     }
   }
   
