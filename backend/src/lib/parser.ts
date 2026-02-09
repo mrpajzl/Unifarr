@@ -48,7 +48,9 @@ const editionPatterns = [
 
 // TV Show patterns (inspired by Sonarr + extended for common formats)
 const tvPatterns = [
-  // S01E05, S01E05E06, S01E05-E06, S1E5
+  // S01E05 at start of filename (no title prefix) - for files like "S01E01.mp4"
+  /^(?<title>)S(?<season>\d{1,2})[\s._-]?E(?<episode>\d{1,3})(?:[\s._-]?E(?<episode2>\d{1,3}))?/i,
+  // S01E05, S01E05E06, S01E05-E06, S1E5 (with title prefix)
   /(?<title>.+?)[\s._-]+S(?<season>\d{1,2})[\s._-]?E(?<episode>\d{1,3})(?:[\s._-]?E(?<episode2>\d{1,3}))?/i,
   // Season 1 Episode 5, Season 01 Episode 05
   /(?<title>.+?)[\s._-]+Season[\s._-]?(?<season>\d{1,2})[\s._-]+Episode[\s._-]?(?<episode>\d{1,3})/i,
