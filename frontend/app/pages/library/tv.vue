@@ -128,7 +128,7 @@
       :class="{ 'pb-24': selectedCount > 0 }"
     >
       <MediaCard
-        v-for="(show, index) in filteredShows"
+        v-for="(show, index) in displayedShows"
         :key="show.id"
         :media="show"
         :index="index"
@@ -143,7 +143,7 @@
     <!-- List View -->
     <div v-else class="space-y-2">
       <NuxtLink
-        v-for="show in filteredShows"
+        v-for="show in displayedShows"
         :key="show.id"
         :to="`/media/${show.id}`"
         class="card p-3 flex items-center gap-4 hover:border-primary-500/50 transition-colors group"
