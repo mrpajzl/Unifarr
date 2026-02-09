@@ -8,6 +8,13 @@
       "when": 1770554775640,
       "tag": "0000_parallel_korath",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770631736354,
+      "tag": "0001_boring_bromley",
+      "breakpoints": true
     }
   ]
 }

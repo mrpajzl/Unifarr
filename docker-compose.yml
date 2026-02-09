@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: unifarr-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=unifarr
+      - POSTGRES_PASSWORD=unifarr
+      - POSTGRES_DB=unifarr
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      - unifarr
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unifarr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -18,10 +36,13 @@ services:
     environment:
       - PORT=3002
       - NODE_ENV=production
-      - DATABASE_PATH=/app/data/unifarr.db
+      - DATABASE_URL=postgresql://unifarr:unifarr@postgres:5432/unifarr
       - MOVIES_PATH=/data/movies
       - TV_PATH=/data/tvshows
       - DOWNLOADS_PATH=/data/downloads
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - unifarr
 

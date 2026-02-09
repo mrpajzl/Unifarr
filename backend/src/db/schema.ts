@@ -138,6 +138,14 @@ export const mediaRequests = pgTable('media_requests', {
   mediaItemId: integer('media_item_id').references(() => mediaItems.id), // Set when approved + added
 });
 
+// Settings (key-value store)
+export const settings = pgTable('settings', {
+  id: serial('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  value: text('value').notNull(), // JSON string
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // Types for TypeScript
 export type MediaItem = typeof mediaItems.$inferSelect;
 export type NewMediaItem = typeof mediaItems.$inferInsert;
@@ -155,3 +163,5 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type MediaRequest = typeof mediaRequests.$inferSelect;
 export type NewMediaRequest = typeof mediaRequests.$inferInsert;
+export type Setting = typeof settings.$inferSelect;
+export type NewSetting = typeof settings.$inferInsert;
