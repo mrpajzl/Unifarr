@@ -1,42 +1,42 @@
 <template>
   <div class="min-h-screen bg-gray-950">
-    <!-- Top Bar -->
-    <header class="bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-40 lg:pl-64">
-      <div class="px-4 sm:px-6 lg:px-8">
+    <!-- Top Bar (Mobile Only) -->
+    <header class="lg:hidden bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-40">
+      <div class="px-4 sm:px-6">
         <div class="flex items-center justify-between h-14">
           <!-- Mobile menu button + Logo -->
           <div class="flex items-center gap-3">
             <button
               @click="sidebarOpen = !sidebarOpen"
-              class="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
             >
               <Icon name="mdi:menu" class="w-6 h-6" />
             </button>
             
-            <!-- Logo (visible on mobile) -->
-            <NuxtLink to="/" class="lg:hidden flex items-center gap-2 group">
-              <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center group-hover:bg-primary-500 transition-colors">
+            <!-- Logo -->
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
                 <Icon name="mdi:filmstrip" class="w-5 h-5 text-white" />
               </div>
               <span class="text-lg font-bold text-white">Unifarr</span>
-            </NuxtLink>
+            </div>
           </div>
 
-          <!-- User Menu -->
+          <!-- User Menu (Mobile) -->
           <div class="flex items-center gap-2">
-            <div v-if="isAuthenticated" class="flex items-center gap-3">
-              <span class="text-sm text-gray-400 hidden sm:inline">
-                {{ user?.username }}
-                <span v-if="isAdmin" class="ml-1 px-1.5 py-0.5 bg-primary-600 rounded text-xs">Admin</span>
-              </span>
-              <button @click="handleLogout" class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
-                <Icon name="mdi:logout" class="w-5 h-5" />
-              </button>
-            </div>
-            <NuxtLink v-else to="/login" class="btn btn-sm btn-primary">
-              <Icon name="mdi:login" class="w-4 h-4 mr-1" />
-              Login
-            </NuxtLink>
+            <ClientOnly>
+              <ActivityIndicator />
+              
+              <div v-if="isAuthenticated" class="flex items-center gap-3">
+                <button @click="handleLogout" class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                  <Icon name="mdi:logout" class="w-5 h-5" />
+                </button>
+              </div>
+              <NuxtLink v-else to="/login" class="btn btn-sm btn-primary">
+                <Icon name="mdi:login" class="w-4 h-4 mr-1" />
+                Login
+              </NuxtLink>
+            </ClientOnly>
           </div>
         </div>
       </div>
@@ -59,39 +59,64 @@
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <NuxtLink
-            v-for="link in navLinks"
-            :key="link.to"
-            :to="link.to"
-            @click="sidebarOpen = false"
-            :class="[
-              'sidebar-link',
-              isActive(link.to) && 'sidebar-link-active',
-            ]"
-          >
-            <Icon :name="link.icon" class="w-5 h-5 flex-shrink-0" />
-            <span class="flex-1">{{ link.label }}</span>
-            <span
-              v-if="link.badge && link.badge > 0"
+        <ClientOnly>
+          <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <NuxtLink
+              v-for="link in navLinks"
+              :key="link.to"
+              :to="link.to"
+              @click="sidebarOpen = false"
               :class="[
-                'px-2 py-0.5 text-xs rounded-full font-medium',
-                link.badgeColor || 'bg-primary-600 text-white',
+                'sidebar-link',
+                isActive(link.to) && 'sidebar-link-active',
               ]"
             >
-              {{ link.badge }}
-            </span>
-          </NuxtLink>
-        </nav>
+              <Icon :name="link.icon" class="w-5 h-5 flex-shrink-0" />
+              <span class="flex-1">{{ link.label }}</span>
+              <span
+                v-if="link.badge && link.badge > 0"
+                :class="[
+                  'px-2 py-0.5 text-xs rounded-full font-medium',
+                  link.badgeColor || 'bg-primary-600 text-white',
+                ]"
+              >
+                {{ link.badge }}
+              </span>
+            </NuxtLink>
+          </nav>
 
-        <!-- User Info (bottom) -->
-        <div v-if="isAuthenticated" class="px-3 py-3 border-t border-gray-800">
-          <div class="flex items-center gap-2 px-3 py-2 text-sm text-gray-400">
-            <Icon name="mdi:account-circle" class="w-5 h-5" />
-            <span class="flex-1 truncate">{{ user?.username }}</span>
-            <span v-if="isAdmin" class="px-1.5 py-0.5 bg-primary-600 rounded text-xs text-white">Admin</span>
+          <!-- Activity Indicator + User Info (bottom, desktop only) -->
+          <div class="hidden lg:block px-3 py-3 border-t border-gray-800 space-y-2">
+            <!-- Activity Indicator -->
+            <ActivityIndicator />
+
+            <!-- User Info -->
+            <div v-if="isAuthenticated" class="space-y-2">
+              <div class="flex items-center gap-2 px-3 py-2 text-sm text-gray-400">
+                <Icon name="mdi:account-circle" class="w-5 h-5" />
+                <span class="flex-1 truncate">{{ user?.username }}</span>
+                <span v-if="isAdmin" class="px-1.5 py-0.5 bg-primary-600 rounded text-xs text-white">Admin</span>
+              </div>
+              
+              <!-- Logout Button -->
+              <button
+                @click="handleLogout"
+                class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <Icon name="mdi:logout" class="w-5 h-5" />
+                <span>Logout</span>
+              </button>
+            </div>
+
+            <!-- Login Button (if not authenticated) -->
+            <NuxtLink v-else to="/login" class="block">
+              <div class="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+                <Icon name="mdi:login" class="w-5 h-5" />
+                <span>Login</span>
+              </div>
+            </NuxtLink>
           </div>
-        </div>
+        </ClientOnly>
       </div>
     </aside>
 
@@ -110,7 +135,7 @@
     </Transition>
 
     <!-- Main Content -->
-    <main class="lg:pl-64 pt-14">
+    <main class="lg:pl-64 pt-14 lg:pt-0">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <slot />
       </div>
@@ -134,15 +159,9 @@ watch(() => route.path, () => {
 });
 
 // Fetch counts
-const unmatchedCount = ref(0);
 const activeDownloads = ref(0);
 
 const fetchCounts = async () => {
-  try {
-    const unmatched = await api.files.getUnmatched();
-    unmatchedCount.value = unmatched?.length || 0;
-  } catch { /* ignore */ }
-
   try {
     const downloads = await api.downloads.getActive();
     activeDownloads.value = downloads?.downloads?.length || 0;
@@ -187,13 +206,6 @@ const navLinks = computed(() => {
     links.push(
       { to: '/library/movies', icon: 'mdi:movie', label: 'Movies' },
       { to: '/library/tv', icon: 'mdi:television', label: 'TV Shows' },
-      {
-        to: '/unmatched',
-        icon: 'mdi:help-circle',
-        label: 'Unmatched',
-        badge: unmatchedCount.value,
-        badgeColor: 'bg-red-600',
-      } as any,
       {
         to: '/downloads',
         icon: 'mdi:download',
