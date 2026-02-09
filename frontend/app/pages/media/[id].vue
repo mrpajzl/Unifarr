@@ -381,35 +381,14 @@
     />
 
     <!-- TMDB Identify Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showIdentifyModal"
-        class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
-        @click.self="showIdentifyModal = false"
-      >
-        <div class="card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-semibold">Identify on TMDB</h3>
-            <button @click="showIdentifyModal = false" class="text-gray-400 hover:text-white">
-              <Icon name="mdi:close" class="w-6 h-6" />
-            </button>
-          </div>
-          <p class="text-sm text-gray-400 mb-4">
-            Search for "{{ media?.title }}" on TMDB and select the correct match to add metadata, posters, and episode information.
-          </p>
-          <div class="flex justify-center py-8">
-            <NuxtLink 
-              :to="`/discover?search=${encodeURIComponent(media?.title || '')}`"
-              class="btn btn-primary"
-              @click="showIdentifyModal = false"
-            >
-              <Icon name="mdi:magnify" class="w-5 h-5 mr-2" />
-              Open TMDB Search
-            </NuxtLink>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <TmdbIdentifyModal
+      v-if="showIdentifyModal"
+      :media-id="media?.id"
+      :initial-query="media?.title || ''"
+      :type="media?.type === 'tv' ? 'tv' : 'movie'"
+      @close="showIdentifyModal = false"
+      @identify="handleIdentify"
+    />
 
     <!-- Delete Modal -->
     <Teleport to="body">
@@ -499,6 +478,23 @@ const refreshMetadata = async () => {
 
 // TMDB Identify modal
 const showIdentifyModal = ref(false);
+
+const handleIdentify = async (tmdbId: number, type: 'movie' | 'tv') => {
+  try {
+    const config = useRuntimeConfig();
+    await $fetch(`${config.public.apiBase}/api/media/${mediaId.value}/identify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tmdbId, type }),
+    });
+    
+    showIdentifyModal.value = false;
+    await refresh();
+    toast.success('Successfully identified media');
+  } catch (err: any) {
+    toast.error(`Failed to identify: ${err.message}`);
+  }
+};
 
 // Torrent search modal
 const showSearchModal = ref(false);
