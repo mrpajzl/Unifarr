@@ -4,14 +4,20 @@ import path from 'path';
 
 const app = new Hono();
 
-const SETTINGS_FILE = path.join(process.cwd(), 'settings.json');
+// Store settings in /app/data which is mounted as a volume
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 // Helper to read settings
 async function getSettings() {
   try {
+    // Ensure data directory exists
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    
     const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
     return JSON.parse(data);
   } catch (error) {
+    // If file doesn't exist, return defaults
     return {
       tmdbApiKey: process.env.TMDB_API_KEY || '',
       moviesPath: process.env.MOVIES_PATH || '/data/movies',
@@ -61,6 +67,8 @@ async function getSettings() {
 
 // Helper to save settings
 async function saveSettings(settings: any) {
+  // Ensure data directory exists
+  await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
 }
 
