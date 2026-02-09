@@ -90,44 +90,32 @@ export class FolderScanner {
             continue;
           }
           
-          // Calculate total size
-          let totalSize = 0;
-          for (const file of videoFiles) {
-            const stats = await stat(file);
-            totalSize += Number(stats.size);
-          }
-          
-          // Check if folder already exists in DB by path
-          const existing = await db.query.files.findFirst({
-            where: eq(files.path, folderPath),
+          // Find or create mediaItem for this movie
+          let mediaItem = await db.query.mediaItems.findFirst({
+            where: eq(mediaItems.libraryPath, folderPath),
           });
           
-          if (existing) {
-            // Update existing record (includes handling renamed folders)
-            await db.update(files)
-              .set({
-                filename: entry.name, // Update folder name if changed
-                parsedTitle: parsed.title,
-                parsedYear: parsed.year,
-                size: totalSize,
-                parsedQuality: videoFiles.length > 0 ? this.extractQuality(videoFiles[0]) : undefined,
-                scannedAt: new Date(),
-              })
-              .where(eq(files.id, existing.id));
+          if (!mediaItem) {
+            // Create new movie entry
+            const [newItem] = await db.insert(mediaItems).values({
+              type: 'movie',
+              title: parsed.title,
+              year: parsed.year,
+              libraryPath: folderPath,
+              monitored: false,
+            }).returning();
+            mediaItem = newItem;
+            result.added++;
+            console.log(`✨ Created movie: ${parsed.title}`);
+            
+            // Auto-identify with TMDB
+            await this.autoIdentifyMovie(mediaItem, parsed.title, parsed.year);
+          } else if (!mediaItem.tmdbId) {
+            // Existing item without TMDB ID - try to auto-identify
+            await this.autoIdentifyMovie(mediaItem, parsed.title, parsed.year);
             result.updated++;
           } else {
-            // Insert new record
-            await db.insert(files).values({
-              path: folderPath,
-              filename: entry.name,
-              size: totalSize,
-              parsedTitle: parsed.title,
-              parsedYear: parsed.year,
-              parsedQuality: videoFiles.length > 0 ? this.extractQuality(videoFiles[0]) : undefined,
-              matched: false,
-              scannedAt: new Date(),
-            });
-            result.added++;
+            result.updated++;
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -346,6 +334,66 @@ export class FolderScanner {
             posterPath: firstResult.poster_path,
             backdropPath: firstResult.backdrop_path,
             voteAverage: firstResult.vote_average,
+          })
+          .where(eq(mediaItems.id, mediaItem.id));
+      } else {
+        console.log(`   ⚠️ Year mismatch for "${title}" (${year} vs ${firstResult.year}) - skipping auto-match`);
+      }
+    } catch (error: any) {
+      console.error(`   ❌ Auto-identify failed for "${title}":`, error.message);
+    }
+  }
+  
+  /**
+   * Auto-identify movie with TMDB
+   */
+  private async autoIdentifyMovie(mediaItem: any, title: string, year?: number): Promise<void> {
+    // Skip if already has TMDB ID
+    if (mediaItem.tmdbId) {
+      return;
+    }
+    
+    try {
+      const tmdb = await getTMDBService();
+      if (!tmdb) return;
+      
+      // Search TMDB for the movie
+      const searchResults = await tmdb.searchMovies(title, year);
+      
+      if (searchResults.length === 0) {
+        console.log(`   ⚠️ No TMDB results for "${title}"`);
+        return;
+      }
+      
+      // Auto-match if first result matches title and year (if provided)
+      const firstResult = searchResults[0];
+      const yearMatch = !year || !firstResult.year || firstResult.year === year;
+      
+      if (yearMatch) {
+        // Check if this TMDB ID is already used by another movie
+        const existingMovie = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.tmdbId, firstResult.id),
+        });
+        
+        if (existingMovie) {
+          console.log(`   ⚠️ TMDB ID ${firstResult.id} already used by "${existingMovie.title}" - skipping`);
+          return;
+        }
+        
+        console.log(`   🎬 Auto-matched to TMDB: "${firstResult.title}" (${firstResult.year}) ID: ${firstResult.id}`);
+        
+        // Update media item with TMDB data
+        await db.update(mediaItems)
+          .set({
+            tmdbId: firstResult.id,
+            title: firstResult.title,
+            year: firstResult.year,
+            overview: firstResult.overview,
+            posterPath: firstResult.poster_path,
+            backdropPath: firstResult.backdrop_path,
+            voteAverage: firstResult.vote_average,
+            releaseDate: firstResult.release_date,
+            runtime: firstResult.runtime,
           })
           .where(eq(mediaItems.id, mediaItem.id));
       } else {
