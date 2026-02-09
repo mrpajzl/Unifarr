@@ -2,6 +2,10 @@
 # Stage 1: Build frontend
 FROM node:20-alpine AS frontend-builder
 
+# Accept build argument for API base URL
+ARG NUXT_PUBLIC_API_BASE=http://localhost:3000
+ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
+
 WORKDIR /app/frontend
 
 # Copy frontend package files

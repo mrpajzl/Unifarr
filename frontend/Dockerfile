@@ -18,15 +18,15 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Build argument for API base
-ARG NUXT_PUBLIC_API_BASE=http://localhost:3002
-ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
-
-# Build
+# Build (without API base - will be set at runtime)
 RUN npm run build
 
 # Expose port
 EXPOSE 3000
 
-# Start
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", ".output/server/index.mjs"]

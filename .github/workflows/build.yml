@@ -103,7 +103,6 @@ jobs:
           context: ./frontend
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
-            NUXT_PUBLIC_API_BASE=http://localhost:3002
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
