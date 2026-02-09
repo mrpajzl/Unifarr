@@ -1,7 +1,10 @@
 <template>
-  <NuxtLink 
-    :to="`/media/${media.id}`" 
-    class="card overflow-hidden group cursor-pointer hover:ring-2 hover:ring-primary-600 transition-all"
+  <div
+    class="card overflow-hidden group cursor-pointer hover:ring-2 hover:ring-primary-600 transition-all relative"
+    :class="{ 'ring-2 ring-primary-600': selected }"
+    @click="handleCardClick"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
     <!-- Poster -->
     <div class="relative aspect-[2/3] bg-dark-800 overflow-hidden">
@@ -16,9 +19,40 @@
         <FilmIcon class="w-16 h-16 text-gray-600" />
       </div>
 
-      <!-- Rating badge -->
+      <!-- Selection Checkbox (Desktop: on hover, Mobile: in selection mode) -->
+      <div
+        v-if="showCheckbox"
+        class="absolute top-2 left-2 z-10"
+        @click.stop="handleCheckboxClick"
+      >
+        <div
+          class="w-6 h-6 rounded border-2 flex items-center justify-center transition-all cursor-pointer"
+          :class="[
+            selected 
+              ? 'bg-primary-600 border-primary-600' 
+              : 'bg-dark-900/90 backdrop-blur-sm border-gray-400 hover:border-primary-500'
+          ]"
+        >
+          <Icon
+            v-if="selected"
+            name="mdi:check"
+            class="w-4 h-4 text-white"
+          />
+        </div>
+      </div>
+
+      <!-- Mobile Options Menu Button -->
+      <button
+        v-if="isMobile && !selectionMode"
+        class="absolute top-2 right-2 z-10 w-8 h-8 bg-dark-900/90 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-dark-800 transition-colors"
+        @click.stop="showOptionsMenu = true"
+      >
+        <Icon name="mdi:dots-vertical" class="w-5 h-5" />
+      </button>
+
+      <!-- Rating badge (moved to avoid overlap with checkbox) -->
       <div 
-        v-if="media.voteAverage" 
+        v-if="media.voteAverage && (!showCheckbox || isMobile)" 
         class="absolute top-2 right-2 bg-dark-900/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1"
       >
         <StarIcon class="w-4 h-4 text-yellow-500" />
@@ -50,7 +84,7 @@
       
       <!-- Search Media button for items without TMDB ID -->
       <button
-        v-if="!media.tmdbId"
+        v-if="!media.tmdbId && !selectionMode"
         @click.prevent="navigateTo(`/media/${media.id}`)"
         class="mt-2 w-full btn btn-primary btn-sm flex items-center justify-center gap-1.5"
       >
@@ -60,14 +94,82 @@
       
       <!-- Warning badge for items without TMDB ID -->
       <div
-        v-if="!media.tmdbId"
+        v-if="!media.tmdbId && !selectionMode"
         class="mt-2 flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded"
       >
         <Icon name="mdi:alert-circle-outline" class="w-3.5 h-3.5" />
         <span>Not identified</span>
       </div>
     </div>
-  </NuxtLink>
+
+    <!-- Mobile Options Menu -->
+    <Teleport to="body">
+      <div
+        v-if="showOptionsMenu"
+        class="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center"
+        @click="showOptionsMenu = false"
+      >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        
+        <!-- Menu -->
+        <div
+          class="relative w-full sm:w-auto sm:min-w-[280px] bg-dark-800 rounded-t-xl sm:rounded-xl border border-gray-700 overflow-hidden shadow-xl"
+          @click.stop
+        >
+          <!-- Header -->
+          <div class="px-4 py-3 border-b border-gray-700">
+            <h3 class="font-semibold text-gray-100 truncate">{{ media.title }}</h3>
+          </div>
+
+          <!-- Options -->
+          <div class="py-2">
+            <button
+              @click="handleSelectFromMenu"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:checkbox-marked-circle-outline" class="w-5 h-5 text-primary-500" />
+              <span class="text-gray-100">Select</span>
+            </button>
+
+            <button
+              @click="handleViewDetails"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:eye-outline" class="w-5 h-5 text-blue-500" />
+              <span class="text-gray-100">View Details</span>
+            </button>
+
+            <button
+              @click="handleRefreshMetadata"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:refresh" class="w-5 h-5 text-green-500" />
+              <span class="text-gray-100">Refresh Metadata</span>
+            </button>
+
+            <button
+              @click="handleDelete"
+              class="w-full px-4 py-3 flex items-center gap-3 hover:bg-dark-700 transition-colors text-left"
+            >
+              <Icon name="mdi:delete-outline" class="w-5 h-5 text-red-500" />
+              <span class="text-gray-100">Delete</span>
+            </button>
+          </div>
+
+          <!-- Cancel button (mobile only) -->
+          <div class="sm:hidden border-t border-gray-700">
+            <button
+              @click="showOptionsMenu = false"
+              class="w-full px-4 py-3 text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -76,8 +178,95 @@ import type { MediaItem } from '~/types'
 
 interface Props {
   media: MediaItem
+  index?: number
 }
 
 const props = defineProps<Props>()
 const tmdb = useTMDB()
+
+// Selection state
+const { 
+  selectionMode, 
+  isSelected, 
+  toggleSelection,
+  toggleRangeSelection,
+  lastSelectedIndex 
+} = useMediaSelection()
+
+const selected = computed(() => isSelected(props.media.id))
+
+// Options menu for mobile
+const showOptionsMenu = ref(false)
+
+// Device detection
+const isMobile = ref(false)
+const isHovered = ref(false)
+
+onMounted(() => {
+  // Simple mobile detection
+  isMobile.value = window.innerWidth < 768
+  window.addEventListener('resize', () => {
+    isMobile.value = window.innerWidth < 768
+  })
+})
+
+// Show checkbox logic
+const showCheckbox = computed(() => {
+  if (isMobile.value) {
+    return selectionMode.value
+  } else {
+    // Desktop: show on hover or when in selection mode
+    return isHovered.value || selectionMode.value
+  }
+})
+
+// Handle card click
+const handleCardClick = (event: MouseEvent) => {
+  if (selectionMode.value) {
+    // In selection mode, toggle selection (support shift for range)
+    if (event.shiftKey && lastSelectedIndex.value !== null && props.index !== undefined) {
+      // Range selection - need to get media items from parent
+      // For now, just toggle single
+      toggleSelection(props.media.id, props.index)
+    } else {
+      toggleSelection(props.media.id, props.index)
+    }
+  } else {
+    // Normal mode: navigate to detail
+    navigateTo(`/media/${props.media.id}`)
+  }
+}
+
+// Handle checkbox click
+const handleCheckboxClick = (event: MouseEvent) => {
+  if (event.shiftKey && lastSelectedIndex.value !== null && props.index !== undefined) {
+    // TODO: Range selection - needs parent to provide media array
+    toggleSelection(props.media.id, props.index)
+  } else {
+    toggleSelection(props.media.id, props.index)
+  }
+}
+
+// Options menu actions
+const handleSelectFromMenu = () => {
+  toggleSelection(props.media.id, props.index)
+  showOptionsMenu.value = false
+}
+
+const handleViewDetails = () => {
+  navigateTo(`/media/${props.media.id}`)
+  showOptionsMenu.value = false
+}
+
+const handleRefreshMetadata = async () => {
+  // TODO: Implement refresh metadata
+  console.log('Refresh metadata for', props.media.id)
+  showOptionsMenu.value = false
+}
+
+const handleDelete = async () => {
+  // TODO: Implement delete
+  console.log('Delete', props.media.id)
+  showOptionsMenu.value = false
+}
 </script>

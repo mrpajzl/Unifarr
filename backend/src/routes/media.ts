@@ -32,7 +32,7 @@ app.get('/:id', async (c) => {
 });
 
 // Get episodes for a TV show (raw file list, no TMDB required)
-app.get('/:id/files', async (c) => {
+app.get('/:id/episodes', async (c) => {
   const id = parseInt(c.req.param('id'));
   
   const media = await db.query.mediaItems.findFirst({
@@ -487,6 +487,331 @@ app.patch('/:id/monitored', async (c) => {
     monitored,
     message: `${monitored ? 'Started' : 'Stopped'} monitoring ${media.title}`,
   });
+});
+
+// Identify media with TMDB ID
+app.patch('/:id/identify', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const body = await c.req.json();
+  const { tmdbId, type } = body;
+  
+  if (!tmdbId || !type) {
+    return c.json({ error: 'tmdbId and type are required' }, 400);
+  }
+  
+  if (type !== 'movie' && type !== 'tv') {
+    return c.json({ error: 'type must be "movie" or "tv"' }, 400);
+  }
+  
+  const media = await db.query.mediaItems.findFirst({
+    where: eq(mediaItems.id, id),
+  });
+  
+  if (!media) {
+    return c.json({ error: 'Media not found' }, 404);
+  }
+  
+  try {
+    const apiKey = await getTMDBApiKey();
+    
+    if (!apiKey) {
+      return c.json({ error: 'TMDB API key not configured' }, 500);
+    }
+    
+    // Check if tmdbId already exists for a different media item
+    const existingMedia = await db.query.mediaItems.findFirst({
+      where: (mediaItems, { eq, and, not }) => and(
+        eq(mediaItems.tmdbId, tmdbId),
+        not(eq(mediaItems.id, id))
+      ),
+    });
+    
+    if (existingMedia) {
+      return c.json({ 
+        error: `TMDB ID ${tmdbId} is already used by "${existingMedia.title}" (ID: ${existingMedia.id})` 
+      }, 400);
+    }
+    
+    // Fetch metadata from TMDB
+    const endpoint = type === 'movie' 
+      ? `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${apiKey}&append_to_response=credits,external_ids`
+      : `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${apiKey}&append_to_response=credits,external_ids`;
+    
+    const response = await fetch(endpoint);
+    
+    if (!response.ok) {
+      return c.json({ error: 'Failed to fetch from TMDB' }, 500);
+    }
+    
+    const tmdbData = await response.json();
+    
+    // Update media item with TMDB data
+    const updateData: any = {
+      tmdbId: tmdbId,
+      type: type,
+      title: type === 'movie' ? tmdbData.title : tmdbData.name,
+      originalTitle: type === 'movie' ? tmdbData.original_title : tmdbData.original_name,
+      overview: tmdbData.overview,
+      year: type === 'movie'
+        ? tmdbData.release_date ? new Date(tmdbData.release_date).getFullYear() : null
+        : tmdbData.first_air_date ? new Date(tmdbData.first_air_date).getFullYear() : null,
+      releaseDate: type === 'movie' ? tmdbData.release_date : tmdbData.first_air_date,
+      runtime: type === 'movie' ? tmdbData.runtime : tmdbData.episode_run_time?.[0],
+      genres: tmdbData.genres?.map((g: any) => g.name).join(', '),
+      posterPath: tmdbData.poster_path,
+      backdropPath: tmdbData.backdrop_path,
+      voteAverage: tmdbData.vote_average,
+      voteCount: tmdbData.vote_count,
+      status: tmdbData.status,
+      tagline: tmdbData.tagline,
+      imdbId: tmdbData.external_ids?.imdb_id,
+      numberOfSeasons: type === 'tv' ? tmdbData.number_of_seasons : null,
+      numberOfEpisodes: type === 'tv' ? tmdbData.number_of_episodes : null,
+    };
+    
+    await db.update(mediaItems)
+      .set(updateData)
+      .where(eq(mediaItems.id, id));
+    
+    console.log(`🎬 Identified media ${id} as TMDB ${type} ${tmdbId}: ${updateData.title}`);
+    
+    return c.json({
+      success: true,
+      message: `Successfully identified as ${updateData.title}`,
+      tmdbId,
+      title: updateData.title,
+    });
+  } catch (error: any) {
+    console.error(`Failed to identify media ${id}:`, error);
+    return c.json({ error: error.message || 'Failed to identify media' }, 500);
+  }
+});
+
+// ========== Bulk Operations ==========
+
+// Bulk refresh metadata
+app.post('/bulk/refresh-metadata', async (c) => {
+  try {
+    const { ids } = await c.req.json();
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json({ error: 'Invalid ids array' }, 400);
+    }
+
+    const tmdb = getTMDBService();
+    if (!tmdb) {
+      return c.json({ error: 'TMDB service not configured' }, 500);
+    }
+
+    const results = {
+      success: [] as number[],
+      failed: [] as { id: number; error: string }[],
+    };
+
+    for (const id of ids) {
+      try {
+        const media = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.id, id),
+        });
+
+        if (!media) {
+          results.failed.push({ id, error: 'Media not found' });
+          continue;
+        }
+
+        if (!media.tmdbId) {
+          results.failed.push({ id, error: 'No TMDB ID' });
+          continue;
+        }
+
+        // Fetch fresh data from TMDB
+        const details = media.type === 'movie'
+          ? await tmdb.getMovieDetails(media.tmdbId)
+          : await tmdb.getTVShowDetails(media.tmdbId);
+
+        // Update database
+        await db.update(mediaItems)
+          .set({
+            title: details.title || details.name,
+            originalTitle: details.original_title || details.original_name,
+            overview: details.overview,
+            releaseDate: details.release_date || details.first_air_date,
+            year: details.release_date 
+              ? new Date(details.release_date).getFullYear()
+              : details.first_air_date
+              ? new Date(details.first_air_date).getFullYear()
+              : null,
+            posterPath: details.poster_path,
+            backdropPath: details.backdrop_path,
+            voteAverage: details.vote_average,
+            voteCount: details.vote_count,
+            popularity: details.popularity,
+            genres: JSON.stringify(details.genres),
+            runtime: details.runtime,
+            status: details.status,
+            tagline: details.tagline,
+            numberOfSeasons: (details as any).number_of_seasons,
+            numberOfEpisodes: (details as any).number_of_episodes,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(mediaItems.id, id));
+
+        results.success.push(id);
+        console.log(`✅ Refreshed metadata for ${media.title} (${id})`);
+      } catch (error: any) {
+        results.failed.push({ id, error: error.message });
+        console.error(`❌ Failed to refresh metadata for ${id}:`, error);
+      }
+    }
+
+    return c.json({
+      message: `Refreshed ${results.success.length} of ${ids.length} items`,
+      results,
+    });
+  } catch (error: any) {
+    console.error('Bulk refresh metadata error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Bulk auto-match
+app.post('/bulk/auto-match', async (c) => {
+  try {
+    const { ids } = await c.req.json();
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json({ error: 'Invalid ids array' }, 400);
+    }
+
+    const tmdb = getTMDBService();
+    if (!tmdb) {
+      return c.json({ error: 'TMDB service not configured' }, 500);
+    }
+
+    const results = {
+      success: [] as number[],
+      failed: [] as { id: number; error: string }[],
+    };
+
+    for (const id of ids) {
+      try {
+        const media = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.id, id),
+        });
+
+        if (!media) {
+          results.failed.push({ id, error: 'Media not found' });
+          continue;
+        }
+
+        if (media.tmdbId) {
+          results.failed.push({ id, error: 'Already matched' });
+          continue;
+        }
+
+        // Try to auto-match
+        const matched = await autoMatchFolder(media.id, tmdb);
+        
+        if (matched) {
+          results.success.push(id);
+          console.log(`✅ Auto-matched ${media.title} (${id})`);
+        } else {
+          results.failed.push({ id, error: 'No match found' });
+        }
+      } catch (error: any) {
+        results.failed.push({ id, error: error.message });
+        console.error(`❌ Failed to auto-match ${id}:`, error);
+      }
+    }
+
+    return c.json({
+      message: `Matched ${results.success.length} of ${ids.length} items`,
+      results,
+    });
+  } catch (error: any) {
+    console.error('Bulk auto-match error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Bulk rename (placeholder - complex operation)
+app.post('/bulk/rename', async (c) => {
+  try {
+    const { ids, pattern } = await c.req.json();
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json({ error: 'Invalid ids array' }, 400);
+    }
+
+    if (!pattern || typeof pattern !== 'string') {
+      return c.json({ error: 'Invalid pattern' }, 400);
+    }
+
+    // TODO: Implement bulk rename logic
+    // This is a complex operation that needs:
+    // 1. Parse the pattern (e.g., "{title} ({year})")
+    // 2. Rename folders based on media metadata
+    // 3. Update database paths
+    // 4. Handle file system errors gracefully
+
+    return c.json({
+      message: 'Bulk rename not yet implemented',
+      pattern,
+      ids,
+    }, 501);
+  } catch (error: any) {
+    console.error('Bulk rename error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Bulk delete
+app.post('/bulk/delete', async (c) => {
+  try {
+    const { ids } = await c.req.json();
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json({ error: 'Invalid ids array' }, 400);
+    }
+
+    const results = {
+      success: [] as number[],
+      failed: [] as { id: number; error: string }[],
+    };
+
+    for (const id of ids) {
+      try {
+        const media = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.id, id),
+        });
+
+        if (!media) {
+          results.failed.push({ id, error: 'Media not found' });
+          continue;
+        }
+
+        // Delete associated files first
+        await db.delete(files).where(eq(files.mediaItemId, id));
+        
+        // Delete media item
+        await db.delete(mediaItems).where(eq(mediaItems.id, id));
+
+        results.success.push(id);
+        console.log(`🗑️ Deleted ${media.title} (${id})`);
+      } catch (error: any) {
+        results.failed.push({ id, error: error.message });
+        console.error(`❌ Failed to delete ${id}:`, error);
+      }
+    }
+
+    return c.json({
+      message: `Deleted ${results.success.length} of ${ids.length} items`,
+      results,
+    });
+  } catch (error: any) {
+    console.error('Bulk delete error:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 export default app;

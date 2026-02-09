@@ -65,8 +65,19 @@
       </template>
     </LibraryToolbar>
 
+    <!-- Library Not Configured -->
+    <div v-if="!libraryConfigured" class="card p-12 text-center">
+      <Icon name="mdi:folder-alert-outline" class="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+      <h3 class="text-xl font-semibold mb-2">TV shows library not configured</h3>
+      <p class="text-gray-400 mb-6">Please configure the TV shows library path in settings to start using this feature</p>
+      <NuxtLink to="/settings/libraries" class="btn btn-primary">
+        <Icon name="mdi:cog" class="w-5 h-5 mr-2" />
+        Configure Library
+      </NuxtLink>
+    </div>
+
     <!-- Loading -->
-    <div v-if="pending" class="flex justify-center py-16">
+    <div v-else-if="pending" class="flex justify-center py-16">
       <div class="flex flex-col items-center gap-3">
         <Icon name="mdi:loading" class="w-8 h-8 animate-spin text-primary-500" />
         <span class="text-sm text-gray-500">Loading TV shows...</span>
@@ -114,11 +125,13 @@
     <div
       v-else-if="viewMode === 'grid'"
       class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+      :class="{ 'pb-24': selectedCount > 0 }"
     >
       <MediaCard
-        v-for="show in filteredShows"
+        v-for="(show, index) in filteredShows"
         :key="show.id"
         :media="show"
+        :index="index"
       />
     </div>
 
@@ -173,7 +186,21 @@
     </div>
 
     <!-- Scan Modal -->
-    <ScanLibrary v-model="showScan" @scanned="onScanned" />
+    <ClientOnly>
+      <ScanLibrary v-model="showScan" @scanned="onScanned" />
+    </ClientOnly>
+
+    <!-- Bulk Actions Panel -->
+    <BulkActionsPanel
+      :selected-count="selectedCount"
+      :can-select-all="filteredShows.length > selectedCount"
+      @select-all="handleSelectAll"
+      @clear-selection="handleClearSelection"
+      @refresh-metadata="handleBulkRefreshMetadata"
+      @auto-match="handleBulkAutoMatch"
+      @rename="handleBulkRename"
+      @delete="handleBulkDelete"
+    />
   </div>
 </template>
 
@@ -184,6 +211,16 @@ const { getTMDBImageUrl, parseGenres } = useFormatters();
 const viewMode = ref<'grid' | 'list'>('grid');
 const showScan = ref(false);
 
+// Selection state
+const {
+  selectionMode,
+  selectedCount,
+  selectedIdsArray,
+  selectAll,
+  clearSelection,
+  toggleSelectionMode
+} = useMediaSelection();
+
 // Filters
 const searchQuery = ref('');
 const sortBy = ref('title');
@@ -192,6 +229,24 @@ const genreFilter = ref('');
 const yearFilter = ref('');
 const statusFilter = ref('');
 const showOnlyWithoutTMDB = ref(false);
+
+// Fetch settings to check if library is configured
+const { data: settings } = await useAsyncData('settings-tv', async () => {
+  try {
+    const config = useRuntimeConfig();
+    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+  }
+  return null;
+});
+
+const libraryConfigured = computed(() => {
+  return settings.value?.tvPath ? true : false;
+});
 
 // Fetch
 const { data: media, pending, error, refresh } = await useAsyncData(
@@ -257,6 +312,95 @@ const filteredShows = computed(() => {
 
 const onScanned = () => {
   refresh();
+};
+
+// Bulk action handlers
+const handleSelectAll = () => {
+  selectAll(filteredShows.value);
+};
+
+const handleClearSelection = () => {
+  clearSelection();
+  toggleSelectionMode(false);
+};
+
+const handleBulkRefreshMetadata = async () => {
+  try {
+    const ids = selectedIdsArray.value.map(Number);
+    const result = await api.media.bulkRefreshMetadata(ids);
+    
+    console.log('✅ Bulk refresh result:', result);
+    
+    if (result.results.failed.length > 0) {
+      console.warn('Some items failed:', result.results.failed);
+    }
+    
+    alert(result.message);
+    
+    handleClearSelection();
+    refresh();
+  } catch (error: any) {
+    console.error('Failed to refresh metadata:', error);
+    alert(`Failed to refresh metadata: ${error.message || 'Unknown error'}`);
+  }
+};
+
+const handleBulkAutoMatch = async () => {
+  try {
+    const ids = selectedIdsArray.value.map(Number);
+    const result = await api.media.bulkAutoMatch(ids);
+    
+    console.log('✅ Bulk auto-match result:', result);
+    
+    if (result.results.failed.length > 0) {
+      console.warn('Some items failed:', result.results.failed);
+    }
+    
+    alert(result.message);
+    
+    handleClearSelection();
+    refresh();
+  } catch (error: any) {
+    console.error('Failed to auto-match:', error);
+    alert(`Failed to auto-match: ${error.message || 'Unknown error'}`);
+  }
+};
+
+const handleBulkRename = async (pattern: string) => {
+  try {
+    const ids = selectedIdsArray.value.map(Number);
+    const result = await api.media.bulkRename(ids, pattern);
+    
+    console.log('Bulk rename result:', result);
+    alert('Bulk rename is not yet implemented. Stay tuned!');
+    
+    handleClearSelection();
+    refresh();
+  } catch (error: any) {
+    console.error('Failed to rename:', error);
+    alert(`Failed to rename: ${error.message || 'Unknown error'}`);
+  }
+};
+
+const handleBulkDelete = async () => {
+  try {
+    const ids = selectedIdsArray.value.map(Number);
+    const result = await api.media.bulkDelete(ids);
+    
+    console.log('✅ Bulk delete result:', result);
+    
+    if (result.results.failed.length > 0) {
+      console.warn('Some items failed to delete:', result.results.failed);
+    }
+    
+    alert(result.message);
+    
+    handleClearSelection();
+    refresh();
+  } catch (error: any) {
+    console.error('Failed to delete:', error);
+    alert(`Failed to delete: ${error.message || 'Unknown error'}`);
+  }
 };
 
 useHead({ title: 'TV Shows - Unifarr' });

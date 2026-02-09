@@ -41,6 +41,28 @@ export const useApi = () => {
         apiFetch<{ success: boolean; matched: number; skipped: number; message: string }>('/api/media/auto-match-all', { method: 'POST' }),
       getEpisodes: (id: number) =>
         apiFetch<{ mediaId: number; tmdbId: number; title: string; seasons: any[] }>(`/api/media/${id}/episodes/matched`),
+      
+      // Bulk operations
+      bulkRefreshMetadata: (ids: number[]) =>
+        apiFetch<{ message: string; results: { success: number[]; failed: { id: number; error: string }[] } }>('/api/media/bulk/refresh-metadata', {
+          method: 'POST',
+          body: { ids }
+        }),
+      bulkAutoMatch: (ids: number[]) =>
+        apiFetch<{ message: string; results: { success: number[]; failed: { id: number; error: string }[] } }>('/api/media/bulk/auto-match', {
+          method: 'POST',
+          body: { ids }
+        }),
+      bulkRename: (ids: number[], pattern: string) =>
+        apiFetch<{ message: string; pattern: string; ids: number[] }>('/api/media/bulk/rename', {
+          method: 'POST',
+          body: { ids, pattern }
+        }),
+      bulkDelete: (ids: number[]) =>
+        apiFetch<{ message: string; results: { success: number[]; failed: { id: number; error: string }[] } }>('/api/media/bulk/delete', {
+          method: 'POST',
+          body: { ids }
+        }),
     },
 
     // Files endpoints
@@ -189,6 +211,15 @@ export const useApi = () => {
         apiFetch<any>(`/api/discover/details/${mediaType}/${id}`),
       person: (id: number) =>
         apiFetch<any>(`/api/discover/person/${id}`),
+    },
+
+    // Activities endpoints
+    activities: {
+      getAll: () => apiFetch<{ activities: Activity[] }>('/api/activities'),
+      getActive: () => apiFetch<{ activities: Activity[] }>('/api/activities/active'),
+      getRecent: (limit = 10) => apiFetch<{ activities: Activity[] }>(`/api/activities/recent?limit=${limit}`),
+      get: (id: string) => apiFetch<Activity>(`/api/activities/${id}`),
+      clear: () => apiFetch('/api/activities', { method: 'DELETE' }),
     },
   }
 }
