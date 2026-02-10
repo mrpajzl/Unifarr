@@ -222,13 +222,25 @@ export async function autoDownloadEpisode(episode: NewEpisode): Promise<boolean>
         password: settings.webshare.password,
       });
       
-      const result = await webshare.download(ident, bestResult.title, episode.mediaId);
-      
-      if (result && result.success) {
-        console.log(`  ✅ Download started via Webshare: ${bestResult.title}`);
+      try {
+        const downloadLink = await webshare.getDownloadLink(ident);
+        
+        if (!downloadLink) {
+          console.error('  ❌ Failed to get Webshare download link');
+          return false;
+        }
+        
+        // Use HTTP downloader
+        const { getHttpDownloader } = await import('./download/http-downloader');
+        const downloader = await getHttpDownloader();
+        
+        const filename = `${bestResult.title}.${episode.season}x${episode.episode}.mkv`;
+        await downloader.addDownload(downloadLink, savePath, filename);
+        
+        console.log(`  ✅ Download started via Webshare: ${filename}`);
         return true;
-      } else {
-        console.error('  ❌ Webshare download failed');
+      } catch (error: any) {
+        console.error('  ❌ Webshare download failed:', error.message);
         return false;
       }
     } else {
