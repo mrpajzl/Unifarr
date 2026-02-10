@@ -54,12 +54,7 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
       
       try {
         // Get show details to find latest season
-        if (!tmdb.tvShows) {
-          console.error(`  TMDB tvShows API not available for ${show.title}`);
-          continue;
-        }
-        
-        const details = await tmdb.tvShows.details(show.tmdbId);
+        const details = await tmdb.getTVShowDetails(show.tmdbId);
         
         if (!details || !details.number_of_seasons) continue;
         
@@ -71,12 +66,7 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
         
         for (const seasonNum of seasonsToCheck) {
           try {
-            if (!tmdb.tvSeasons) {
-              console.error(`  TMDB tvSeasons API not available for ${show.title}`);
-              continue;
-            }
-            
-            const season = await tmdb.tvSeasons.details(show.tmdbId, seasonNum);
+            const season = await tmdb.getTVSeason(show.tmdbId, seasonNum);
             
             if (!season || !season.episodes) continue;
             
