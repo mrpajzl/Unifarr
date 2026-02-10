@@ -68,9 +68,12 @@ export class WebTorrentClient extends EventEmitter {
       // Always download to downloads/ folder first
       const tempDownloadPath = this.downloadsDir;
       
-      const torrent = this.client.add(magnetOrFileOrBuffer, {
-        path: tempDownloadPath,
-      }, async (torrent) => {
+      let torrent: WebTorrent.Torrent;
+      
+      try {
+        torrent = this.client.add(magnetOrFileOrBuffer, {
+          path: tempDownloadPath,
+        }, async (torrent) => {
         console.log(`✅ Torrent added: ${torrent.name}`);
         console.log(`   InfoHash: ${torrent.infoHash}`);
         console.log(`   Size: ${this.formatBytes(torrent.length)}`);
@@ -117,11 +120,16 @@ export class WebTorrentClient extends EventEmitter {
         
         resolve(torrent.infoHash);
       });
-
-      torrent.on('error', (err) => {
-        console.error('Failed to add torrent:', err);
-        reject(err);
-      });
+      
+        // Add error handler immediately after adding torrent
+        torrent.on('error', (err) => {
+          console.error('Failed to add torrent:', err);
+          reject(err);
+        });
+      } catch (error) {
+        console.error('Exception while adding torrent:', error);
+        reject(error);
+      }
     });
   }
   
