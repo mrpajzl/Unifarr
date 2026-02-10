@@ -337,7 +337,15 @@ export class WebTorrentClient extends EventEmitter {
       const files = await fs.readdir(this.torrentsDir);
       const torrentFiles = files.filter(f => f.endsWith('.torrent'));
       
+      if (torrentFiles.length === 0) {
+        console.log(`📦 No persisted torrents to load`);
+        return;
+      }
+      
       console.log(`🔄 Loading ${torrentFiles.length} persisted torrents...`);
+      
+      let loaded = 0;
+      let failed = 0;
       
       for (const file of torrentFiles) {
         const infoHash = path.basename(file, '.torrent');
@@ -352,9 +360,13 @@ export class WebTorrentClient extends EventEmitter {
           // Load .torrent file
           const torrentBuffer = await fs.readFile(torrentPath);
           
-          // Re-add torrent
+          // Re-add torrent with a small delay to prevent overload
           await this.addTorrent(torrentBuffer, metadata.finalPath, metadata.category);
           console.log(`  ✅ Restored: ${metadata.name}`);
+          loaded++;
+          
+          // Small delay between torrents to prevent crashes
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           // If torrent is complete, start ratio monitoring
           const restoredTorrent = this.torrents.get(infoHash);
@@ -362,12 +374,22 @@ export class WebTorrentClient extends EventEmitter {
             this.startRatioMonitoring(infoHash);
             console.log(`  🌱 Seeding (ratio monitoring started)`);
           }
-        } catch (error) {
-          console.error(`  ❌ Failed to restore ${file}:`, error);
+        } catch (error: any) {
+          console.error(`  ❌ Failed to restore ${file}:`, error.message || error);
+          failed++;
+          
+          // Delete corrupted torrent files to prevent future crashes
+          try {
+            await fs.unlink(torrentPath).catch(() => {});
+            await fs.unlink(metadataPath).catch(() => {});
+            console.log(`  🗑️ Removed corrupted torrent files: ${file}`);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
         }
       }
       
-      console.log(`✅ Loaded ${torrentFiles.length} torrents`);
+      console.log(`✅ Loaded ${loaded} torrents (${failed} failed)`);
     } catch (error) {
       console.error('Failed to load persisted torrents:', error);
     }
