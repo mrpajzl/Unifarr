@@ -103,7 +103,7 @@
           <div class="flex items-center justify-between mb-3">
             <div>
               <p class="text-sm text-gray-400">
-                Found {{ results.length }} result{{ results.length !== 1 ? 's' : '' }}
+                Showing {{ filteredAndSortedResults.length }} of {{ results.length }} result{{ results.length !== 1 ? 's' : '' }}
                 <span v-if="providerCount" class="text-gray-500">
                   from {{ providerCount }} provider{{ providerCount !== 1 ? 's' : '' }}
                 </span>
@@ -114,9 +114,42 @@
             </div>
           </div>
 
+          <!-- Filter and Sort Controls -->
+          <div class="flex items-center gap-3 mb-3 p-3 bg-gray-800/50 rounded-lg">
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-400 whitespace-nowrap">Provider:</label>
+              <select v-model="providerFilter" class="input input-sm text-sm">
+                <option value="all">All Providers</option>
+                <option v-for="provider in availableProviders" :key="provider" :value="provider">
+                  {{ provider }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-400 whitespace-nowrap">Sort by:</label>
+              <select v-model="sortBy" class="input input-sm text-sm">
+                <option value="matchScore">Match Score</option>
+                <option value="size">Size</option>
+                <option value="seeders">Seeders</option>
+              </select>
+            </div>
+            
+            <button
+              @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+              class="btn btn-secondary btn-sm"
+              :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
+            >
+              <Icon
+                :name="sortOrder === 'asc' ? 'mdi:sort-ascending' : 'mdi:sort-descending'"
+                class="w-4 h-4"
+              />
+            </button>
+          </div>
+
           <div class="space-y-2 max-h-96 overflow-y-auto">
             <div
-              v-for="(result, index) in results"
+              v-for="(result, index) in filteredAndSortedResults"
               :key="index"
               class="card p-4 hover:border-primary-500/50 transition-colors"
             >
@@ -278,11 +311,57 @@ const usedQueries = ref<string[]>([]);
 const usedOverride = ref(false);
 const manualQueryEdit = ref(false);
 
+// Sorting and filtering
+const sortBy = ref<'matchScore' | 'size' | 'seeders'>('matchScore');
+const sortOrder = ref<'asc' | 'desc'>('desc');
+const providerFilter = ref<string>('all');
+
 // Watch for manual query edits
 watch(searchQuery, (newVal) => {
   if (newVal !== props.initialQuery && searched.value === false) {
     manualQueryEdit.value = true;
   }
+});
+
+// Get unique providers from results
+const availableProviders = computed(() => {
+  const providers = new Set(results.value.map(r => r.provider));
+  return Array.from(providers).sort();
+});
+
+// Filtered and sorted results
+const filteredAndSortedResults = computed(() => {
+  let filtered = [...results.value];
+  
+  // Apply provider filter
+  if (providerFilter.value !== 'all') {
+    filtered = filtered.filter(r => r.provider === providerFilter.value);
+  }
+  
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let valA: number, valB: number;
+    
+    switch (sortBy.value) {
+      case 'size':
+        valA = a.size || 0;
+        valB = b.size || 0;
+        break;
+      case 'seeders':
+        valA = a.seeders || 0;
+        valB = b.seeders || 0;
+        break;
+      case 'matchScore':
+      default:
+        valA = a.matchScore || 0;
+        valB = b.matchScore || 0;
+        break;
+    }
+    
+    return sortOrder.value === 'asc' ? valA - valB : valB - valA;
+  });
+  
+  return filtered;
 });
 
 // Format file size
