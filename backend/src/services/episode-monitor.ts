@@ -50,7 +50,7 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
         // Get show details to find latest season
         const details = await tmdb.tvShows.details(show.tmdbId);
         
-        if (!details.number_of_seasons) continue;
+        if (!details || !details.number_of_seasons) continue;
         
         // Check last 2 seasons for new episodes
         const seasonsToCheck = [
@@ -62,7 +62,7 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
           try {
             const season = await tmdb.tvSeasons.details(show.tmdbId, seasonNum);
             
-            if (!season.episodes) continue;
+            if (!season || !season.episodes) continue;
             
             // Find episodes that aired today or recently (last 7 days)
             const sevenDaysAgo = new Date();
