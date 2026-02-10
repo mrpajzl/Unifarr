@@ -25,9 +25,15 @@ services:
       NODE_ENV: production
       # PostgreSQL connection
       DATABASE_URL: postgresql://unifarr:unifarr_password_change_me@postgres:5432/unifarr
+      # Library paths
+      MOVIES_PATH: /data/media/movies
+      TV_PATH: /data/media/tvshows
+      # Downloads path (where torrents/HTTP downloads go)
+      DOWNLOADS_PATH: /data/downloads
     volumes:
       - /mnt/HDDs/media/unifarr/data:/app/data
       - /mnt/HDDs/media:/data/media
+      - /mnt/HDDs/media/downloads:/data/downloads
     depends_on:
       postgres:
         condition: service_healthy

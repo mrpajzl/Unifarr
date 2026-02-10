@@ -61,6 +61,28 @@
               Root directory where TV show folders are stored
             </p>
           </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Downloads Path</label>
+            <div class="flex gap-2">
+              <input
+                v-model="settings.downloadsPath"
+                type="text"
+                class="input flex-1 font-mono text-sm"
+                placeholder="/path/to/downloads"
+              />
+              <button
+                @click="showDownloadsBrowser = true"
+                class="btn btn-secondary"
+              >
+                <Icon name="mdi:folder-open" class="w-4 h-4" />
+                Browse
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+              Temporary directory for downloading torrents and HTTP files
+            </p>
+          </div>
         </div>
       </div>
 
@@ -98,6 +120,12 @@
       title="Select TV Shows Library Folder"
       @select="(path) => settings.tvPath = path"
     />
+    
+    <FileBrowser
+      v-model="showDownloadsBrowser"
+      title="Select Downloads Folder"
+      @select="(path) => settings.downloadsPath = path"
+    />
   </div>
 </template>
 
@@ -107,10 +135,12 @@ const { showToast } = useToast();
 const saving = ref(false);
 const showMoviesBrowser = ref(false);
 const showTVBrowser = ref(false);
+const showDownloadsBrowser = ref(false);
 
 const settings = reactive({
   moviesPath: '/data/movies',
   tvPath: '/data/tvshows',
+  downloadsPath: '/data/downloads',
 });
 
 // Load settings from backend
@@ -122,6 +152,7 @@ onMounted(async () => {
       const data = await response.json();
       if (data.moviesPath) settings.moviesPath = data.moviesPath;
       if (data.tvPath) settings.tvPath = data.tvPath;
+      if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
     }
   } catch (error) {
     console.error('Failed to load settings:', error);
@@ -139,6 +170,7 @@ const saveSettings = async () => {
       body: JSON.stringify({
         moviesPath: settings.moviesPath,
         tvPath: settings.tvPath,
+        downloadsPath: settings.downloadsPath,
       }),
     });
 
@@ -163,6 +195,7 @@ const resetSettings = async () => {
       const data = await response.json();
       if (data.moviesPath) settings.moviesPath = data.moviesPath;
       if (data.tvPath) settings.tvPath = data.tvPath;
+      if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
     }
     showToast('Settings reloaded from server', 'info');
   } catch (error: any) {
