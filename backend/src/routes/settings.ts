@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   moviesPath: process.env.MOVIES_PATH || '/data/movies',
   tvPath: process.env.TV_PATH || '/data/tvshows',
   downloadsPath: process.env.DOWNLOADS_PATH || './downloads',
+  torrentsPath: process.env.TORRENTS_PATH || '', // Empty means use downloadsPath/torrents
   qbittorrent: {
     host: process.env.QBITTORRENT_HOST || 'localhost',
     port: parseInt(process.env.QBITTORRENT_PORT || '8080'),

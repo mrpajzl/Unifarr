@@ -15,7 +15,7 @@ const TVSHOWS_PATH = process.env.TVSHOWS_PATH || '/data/tvshows';
 export async function checkCompletedDownloads() {
   try {
     // Check WebTorrent downloads
-    const torrentClient = getWebTorrentClient();
+    const torrentClient = await getWebTorrentClient();
     const torrents = torrentClient.getTorrents();
 
     for (const torrent of torrents) {

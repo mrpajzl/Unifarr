@@ -490,9 +490,18 @@ export class WebTorrentClient extends EventEmitter {
 // Global singleton instance
 let instance: WebTorrentClient | null = null;
 
-export function getWebTorrentClient(): WebTorrentClient {
+export async function getWebTorrentClient(): Promise<WebTorrentClient> {
   if (!instance) {
-    instance = new WebTorrentClient();
+    // Get settings for custom paths
+    const { getSettings } = await import('../../routes/settings');
+    const settings = await getSettings();
+    
+    const torrentsDir = settings.torrentsPath 
+      ? path.join(settings.torrentsPath, 'torrents')
+      : path.join(settings.downloadsPath || './downloads', 'torrents');
+    const downloadsDir = settings.downloadsPath || './downloads';
+    
+    instance = new WebTorrentClient(torrentsDir, downloadsDir);
     
     // Load persisted torrents asynchronously (don't block)
     instance.loadPersistedTorrents().catch(err => {

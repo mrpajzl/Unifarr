@@ -228,7 +228,7 @@ export async function autoDownloadEpisode(episode: NewEpisode): Promise<boolean>
     } else {
       // Torrent download (sktorrent: or magnet:)
       const { getWebTorrentClient } = await import('./download/webtorrent-client');
-      const client = getWebTorrentClient();
+      const client = await getWebTorrentClient();
       
       let torrentInput: string | Buffer = downloadUrl;
       

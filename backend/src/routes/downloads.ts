@@ -13,7 +13,7 @@ const router = new Hono();
  */
 router.get('/', async (c) => {
   try {
-    const client = getWebTorrentClient();
+    const client = await getWebTorrentClient();
     const activeTorrents = client.getTorrents();
     
     // Also get active HTTP downloads
@@ -65,7 +65,7 @@ router.get('/', async (c) => {
  */
 router.get('/active', async (c) => {
   try {
-    const client = getWebTorrentClient();
+    const client = await getWebTorrentClient();
     const torrents = client.getTorrents();
     
     const activeDownloads = torrents
@@ -113,7 +113,7 @@ router.post('/', async (c) => {
         return c.json({ error: 'Magnet URL or torrent URL is required' }, 400);
       }
 
-      const client = getWebTorrentClient();
+      const client = await getWebTorrentClient();
       let torrentInput: string | Buffer = magnetUrl;
 
       // Check if it's a SKTorrent download URL (requires proxy)
@@ -212,7 +212,7 @@ router.get('/:hash', async (c) => {
   try {
     const hash = c.req.param('hash');
     
-    const client = getWebTorrentClient();
+    const client = await getWebTorrentClient();
     const torrentInfo = client.getTorrent(hash);
     
     if (!torrentInfo) {
@@ -242,7 +242,7 @@ router.patch('/:hash', async (c) => {
       return c.json({ error: 'Invalid action. Must be "pause" or "resume"' }, 400);
     }
 
-    const client = getWebTorrentClient();
+    const client = await getWebTorrentClient();
     const torrentInfo = client.getTorrent(hash);
     
     if (torrentInfo) {
@@ -290,7 +290,7 @@ router.delete('/:hash', async (c) => {
     const deleteFiles = c.req.query('deleteFiles') === 'true';
 
     // Check if it's a torrent or HTTP download
-    const client = getWebTorrentClient();
+    const client = await getWebTorrentClient();
     const torrentInfo = client.getTorrent(hash);
     
     if (torrentInfo) {
@@ -327,7 +327,7 @@ router.delete('/:hash', async (c) => {
  */
 router.get('/stats', async (c) => {
   try {
-    const client = getWebTorrentClient();
+    const client = await getWebTorrentClient();
     const stats = client.getStats();
     
     const httpDownloader = await getHTTPDownloader();

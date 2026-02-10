@@ -80,7 +80,29 @@
               </button>
             </div>
             <p class="text-xs text-gray-500 mt-1">
-              Temporary directory for downloading torrents and HTTP files
+              Temporary directory for downloading HTTP files
+            </p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Torrents Path</label>
+            <div class="flex gap-2">
+              <input
+                v-model="settings.torrentsPath"
+                type="text"
+                class="input flex-1 font-mono text-sm"
+                placeholder="/path/to/torrents (leave empty to use Downloads Path)"
+              />
+              <button
+                @click="showTorrentsBrowser = true"
+                class="btn btn-secondary"
+              >
+                <Icon name="mdi:folder-open" class="w-4 h-4" />
+                Browse
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+              Directory for torrent files and downloads. Leave empty to use Downloads Path.
             </p>
           </div>
         </div>
@@ -126,6 +148,12 @@
       title="Select Downloads Folder"
       @select="(path) => settings.downloadsPath = path"
     />
+    
+    <FileBrowser
+      v-model="showTorrentsBrowser"
+      title="Select Torrents Folder"
+      @select="(path) => settings.torrentsPath = path"
+    />
   </div>
 </template>
 
@@ -136,11 +164,13 @@ const saving = ref(false);
 const showMoviesBrowser = ref(false);
 const showTVBrowser = ref(false);
 const showDownloadsBrowser = ref(false);
+const showTorrentsBrowser = ref(false);
 
 const settings = reactive({
   moviesPath: '/data/movies',
   tvPath: '/data/tvshows',
   downloadsPath: '/data/downloads',
+  torrentsPath: '',
 });
 
 // Load settings from backend
@@ -153,6 +183,7 @@ onMounted(async () => {
       if (data.moviesPath) settings.moviesPath = data.moviesPath;
       if (data.tvPath) settings.tvPath = data.tvPath;
       if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
+      if (data.torrentsPath !== undefined) settings.torrentsPath = data.torrentsPath;
     }
   } catch (error) {
     console.error('Failed to load settings:', error);
@@ -171,6 +202,7 @@ const saveSettings = async () => {
         moviesPath: settings.moviesPath,
         tvPath: settings.tvPath,
         downloadsPath: settings.downloadsPath,
+        torrentsPath: settings.torrentsPath,
       }),
     });
 
@@ -196,6 +228,7 @@ const resetSettings = async () => {
       if (data.moviesPath) settings.moviesPath = data.moviesPath;
       if (data.tvPath) settings.tvPath = data.tvPath;
       if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
+      if (data.torrentsPath !== undefined) settings.torrentsPath = data.torrentsPath;
     }
     showToast('Settings reloaded from server', 'info');
   } catch (error: any) {
