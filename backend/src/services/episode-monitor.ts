@@ -231,8 +231,8 @@ export async function autoDownloadEpisode(episode: NewEpisode): Promise<boolean>
         }
         
         // Use HTTP downloader
-        const { getHttpDownloader } = await import('./download/http-downloader');
-        const downloader = await getHttpDownloader();
+        const { getHTTPDownloader } = await import('./download/http-downloader');
+        const downloader = await getHTTPDownloader();
         
         const filename = `${bestResult.title}.${episode.season}x${episode.episode}.mkv`;
         await downloader.addDownload(downloadLink, savePath, filename);
