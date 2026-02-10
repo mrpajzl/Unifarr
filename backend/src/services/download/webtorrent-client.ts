@@ -90,32 +90,44 @@ export class WebTorrentClient extends EventEmitter {
           console.error('Failed to save .torrent file:', error);
         }
         
-        // Setup event listeners
+        // Setup event listeners with error handling
         torrent.on('download', () => {
-          this.emit('progress', torrent.infoHash, torrent.progress);
+          try {
+            this.emit('progress', torrent.infoHash, torrent.progress);
+          } catch (error) {
+            console.error('Error in download event handler:', error);
+          }
         });
         
         torrent.on('done', async () => {
-          console.log(`✅ Download complete: ${torrent.name}`);
-          
-          // Copy files to final destination (keep original for seeding)
           try {
-            await this.copyTorrentFiles(torrent, finalPath);
-            console.log(`📁 Copied to: ${finalPath}`);
+            console.log(`✅ Download complete: ${torrent.name}`);
+            
+            // Copy files to final destination (keep original for seeding)
+            try {
+              await this.copyTorrentFiles(torrent, finalPath);
+              console.log(`📁 Copied to: ${finalPath}`);
+            } catch (error) {
+              console.error('Failed to copy files:', error);
+            }
+            
+            // Emit completion event
+            this.emit('complete', torrent.infoHash, torrent.name, finalPath, category);
+            
+            // Start monitoring seed ratio
+            this.startRatioMonitoring(torrent.infoHash);
           } catch (error) {
-            console.error('Failed to copy files:', error);
+            console.error('Error in done event handler:', error);
           }
-          
-          // Emit completion event
-          this.emit('complete', torrent.infoHash, torrent.name, finalPath, category);
-          
-          // Start monitoring seed ratio
-          this.startRatioMonitoring(torrent.infoHash);
         });
         
         torrent.on('error', (err) => {
-          console.error(`❌ Torrent error (${torrent.name}):`, err);
-          this.emit('torrent-error', torrent.infoHash, err);
+          try {
+            console.error(`❌ Torrent error (${torrent.name}):`, err);
+            this.emit('torrent-error', torrent.infoHash, err);
+          } catch (error) {
+            console.error('Error in error event handler:', error);
+          }
         });
         
         resolve(torrent.infoHash);
@@ -344,48 +356,56 @@ export class WebTorrentClient extends EventEmitter {
       
       console.log(`🔄 Loading ${torrentFiles.length} persisted torrents...`);
       
+      // Limit concurrent loading to prevent memory issues
+      const MAX_CONCURRENT = 2;
       let loaded = 0;
       let failed = 0;
       
-      for (const file of torrentFiles) {
-        const infoHash = path.basename(file, '.torrent');
-        const torrentPath = path.join(this.torrentsDir, file);
-        const metadataPath = path.join(this.torrentsDir, `${infoHash}.json`);
+      for (let i = 0; i < torrentFiles.length; i += MAX_CONCURRENT) {
+        const batch = torrentFiles.slice(i, i + MAX_CONCURRENT);
         
-        try {
-          // Load metadata
-          const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-          const metadata = JSON.parse(metadataContent);
+        await Promise.all(batch.map(async (file) => {
+          const infoHash = path.basename(file, '.torrent');
+          const torrentPath = path.join(this.torrentsDir, file);
+          const metadataPath = path.join(this.torrentsDir, `${infoHash}.json`);
           
-          // Load .torrent file
-          const torrentBuffer = await fs.readFile(torrentPath);
-          
-          // Re-add torrent with a small delay to prevent overload
-          await this.addTorrent(torrentBuffer, metadata.finalPath, metadata.category);
-          console.log(`  ✅ Restored: ${metadata.name}`);
-          loaded++;
-          
-          // Small delay between torrents to prevent crashes
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // If torrent is complete, start ratio monitoring
-          const restoredTorrent = this.torrents.get(infoHash);
-          if (restoredTorrent && restoredTorrent.done) {
-            this.startRatioMonitoring(infoHash);
-            console.log(`  🌱 Seeding (ratio monitoring started)`);
-          }
-        } catch (error: any) {
-          console.error(`  ❌ Failed to restore ${file}:`, error.message || error);
-          failed++;
-          
-          // Delete corrupted torrent files to prevent future crashes
           try {
-            await fs.unlink(torrentPath).catch(() => {});
-            await fs.unlink(metadataPath).catch(() => {});
-            console.log(`  🗑️ Removed corrupted torrent files: ${file}`);
-          } catch (e) {
-            // Ignore cleanup errors
+            // Load metadata
+            const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+            const metadata = JSON.parse(metadataContent);
+            
+            // Load .torrent file
+            const torrentBuffer = await fs.readFile(torrentPath);
+            
+            // Re-add torrent
+            await this.addTorrent(torrentBuffer, metadata.finalPath, metadata.category);
+            console.log(`  ✅ Restored: ${metadata.name}`);
+            loaded++;
+            
+            // If torrent is complete, start ratio monitoring
+            const restoredTorrent = this.torrents.get(infoHash);
+            if (restoredTorrent && restoredTorrent.done) {
+              this.startRatioMonitoring(infoHash);
+              console.log(`  🌱 Seeding (ratio monitoring started)`);
+            }
+          } catch (error: any) {
+            console.error(`  ❌ Failed to restore ${file}:`, error.message || error);
+            failed++;
+            
+            // Delete corrupted torrent files to prevent future crashes
+            try {
+              await fs.unlink(torrentPath).catch(() => {});
+              await fs.unlink(metadataPath).catch(() => {});
+              console.log(`  🗑️ Removed corrupted torrent files: ${file}`);
+            } catch (e) {
+              // Ignore cleanup errors
+            }
           }
+        }));
+        
+        // Small delay between batches
+        if (i + MAX_CONCURRENT < torrentFiles.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       
