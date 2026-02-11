@@ -91,6 +91,28 @@ export class SKTorrentTracker extends BaseTracker {
       throw new Error('SKTorrent: Username and password required');
     }
 
+    // Retry login with exponential backoff
+    const maxRetries = 3;
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.attemptLogin();
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          console.log(`⚠️ SKTorrent login attempt ${attempt} failed, retrying in ${waitTime / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+    
+    console.error(`❌ SKTorrent login failed after ${maxRetries} attempts:`, lastError);
+    return false;
+  }
+  
+  private async attemptLogin(): Promise<boolean> {
     try {
       // POST to login form
       const response = await this.client.post(

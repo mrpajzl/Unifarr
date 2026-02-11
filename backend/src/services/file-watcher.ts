@@ -143,7 +143,15 @@ export function startFileWatcher(config: WatcherConfig) {
   });
   
   watcher.on('error', (error) => {
-    console.error('File watcher error:', error);
+    console.error('❌ File watcher error:', error);
+    console.log('🔄 Attempting to restart file watcher in 30 seconds...');
+    
+    // Stop and restart watcher after error
+    setTimeout(() => {
+      console.log('🔄 Restarting file watcher...');
+      stopFileWatcher();
+      startFileWatcher(config);
+    }, 30000); // Wait 30s before restart
   });
   
   console.log('✅ File watcher started');

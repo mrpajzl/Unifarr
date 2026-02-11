@@ -87,6 +87,12 @@ class HTTPDownloader {
     const tempPath = path.join(this.downloadDir, `${downloadId}_${filename}`);
     
     try {
+      // Check available disk space (basic check)
+      // Note: For production, use 'check-disk-space' npm package for accurate results
+      const stats = fs.statfsSync ? fs.statfsSync(this.downloadDir) : null;
+      if (stats && stats.bavail * stats.bsize < 1024 * 1024 * 1024) { // < 1GB free
+        throw new Error('Insufficient disk space (less than 1GB free)');
+      }
       // Create database entry
       await db.insert(downloads).values({
         torrentHash: downloadId,
@@ -156,8 +162,15 @@ class HTTPDownloader {
       }
       
     } catch (error: any) {
+      // Handle disk full error specifically
+      if (error.code === 'ENOSPC') {
+        console.error('❌ Disk full! Cannot continue download.');
+        progress.error = 'Disk full - insufficient space';
+      } else {
+        progress.error = error.message;
+      }
+      
       progress.status = 'error';
-      progress.error = error.message;
       
       // Update database
       await db.update(downloads)
@@ -168,7 +181,11 @@ class HTTPDownloader {
       
       // Clean up temp file
       if (fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
       }
       
       throw error;
