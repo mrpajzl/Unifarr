@@ -231,11 +231,19 @@ async function copyTVShowDirectory(source: string, showBasePath: string) {
   }
 }
 
+let importInterval: NodeJS.Timeout | null = null;
+
 /**
  * Start auto-import watcher
  * Checks every 5 minutes for completed downloads
  */
 export function startAutoImport() {
+  // Don't start multiple intervals
+  if (importInterval) {
+    console.log('⚠️ Auto-import already running');
+    return;
+  }
+
   const INTERVAL = 5 * 60 * 1000; // 5 minutes
 
   console.log('🔄 Auto-import service started (checking every 5 minutes)');
@@ -244,9 +252,20 @@ export function startAutoImport() {
   checkCompletedDownloads();
 
   // Periodic check
-  setInterval(() => {
+  importInterval = setInterval(() => {
     checkCompletedDownloads();
   }, INTERVAL);
+}
+
+/**
+ * Stop auto-import watcher
+ */
+export function stopAutoImport() {
+  if (importInterval) {
+    clearInterval(importInterval);
+    importInterval = null;
+    console.log('⏹️ Auto-import service stopped');
+  }
 }
 
 /**

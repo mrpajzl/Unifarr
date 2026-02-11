@@ -27,6 +27,7 @@ export interface TorrentInfo {
 export class WebTorrentClient extends EventEmitter {
   private client: WebTorrent.Instance;
   private torrents: Map<string, WebTorrent.Torrent> = new Map();
+  private ratioMonitors: Map<string, NodeJS.Timeout> = new Map(); // Track monitoring intervals
   private torrentsDir: string;
   private downloadsDir: string;
 
@@ -187,15 +188,23 @@ export class WebTorrentClient extends EventEmitter {
    * Start monitoring seed ratio for auto-cleanup
    */
   private startRatioMonitoring(infoHash: string): void {
+    // Clear existing monitor if any
+    if (this.ratioMonitors.has(infoHash)) {
+      clearInterval(this.ratioMonitors.get(infoHash)!);
+    }
+    
     const checkInterval = setInterval(async () => {
       const torrent = this.torrents.get(infoHash);
       if (!torrent) {
         clearInterval(checkInterval);
+        this.ratioMonitors.delete(infoHash);
         return;
       }
       
-      // Calculate ratio
-      const ratio = torrent.uploaded / torrent.downloaded;
+      // Calculate ratio (prevent division by zero)
+      const ratio = torrent.downloaded > 0 
+        ? torrent.uploaded / torrent.downloaded 
+        : 0;
       
       // Get settings (default ratio: 2.0)
       const { getSettings } = await import('../../routes/settings');
@@ -214,6 +223,7 @@ export class WebTorrentClient extends EventEmitter {
         console.log(`   Time: ${seedTimeHours.toFixed(1)}h (max: ${maxSeedTimeHours}h)`);
         
         clearInterval(checkInterval);
+        this.ratioMonitors.delete(infoHash);
         
         // Remove torrent and delete files from downloads/
         try {
@@ -224,6 +234,9 @@ export class WebTorrentClient extends EventEmitter {
         }
       }
     }, 60000); // Check every minute
+    
+    // Store interval for cleanup
+    this.ratioMonitors.set(infoHash, checkInterval);
   }
   
   /**
@@ -285,6 +298,12 @@ export class WebTorrentClient extends EventEmitter {
       throw new Error(`Torrent not found: ${infoHash}`);
     }
 
+    // Clear ratio monitoring interval if exists
+    if (this.ratioMonitors.has(infoHash)) {
+      clearInterval(this.ratioMonitors.get(infoHash)!);
+      this.ratioMonitors.delete(infoHash);
+    }
+    
     return new Promise((resolve, reject) => {
       torrent.destroy({ destroyStore: deleteFiles }, async (err) => {
         if (err) {
@@ -436,10 +455,18 @@ export class WebTorrentClient extends EventEmitter {
    * Shutdown client
    */
   async destroy(): Promise<void> {
+    // Clear all ratio monitoring intervals
+    console.log(`  🧹 Clearing ${this.ratioMonitors.size} ratio monitoring intervals...`);
+    for (const interval of this.ratioMonitors.values()) {
+      clearInterval(interval);
+    }
+    this.ratioMonitors.clear();
+    
     return new Promise((resolve) => {
       this.client.destroy((err) => {
         if (err) console.error('Error destroying WebTorrent client:', err);
         console.log('🛑 WebTorrent client stopped');
+        this.torrents.clear(); // Clear torrents map
         resolve();
       });
     });

@@ -3,19 +3,7 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-
-// Global error handlers to prevent crashes
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-  console.error('Stack:', error.stack);
-  // Don't exit - keep the server running
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise);
-  console.error('Reason:', reason);
-  // Don't exit - keep the server running
-});
+import { setupShutdownHandlers, registerServer } from './lifecycle';
 
 import filesRouter from './routes/files';
 import mediaRouter from './routes/media';
@@ -138,8 +126,15 @@ if (process.env.EPISODE_MONITOR !== 'false') {
   startEpisodeMonitor();
 }
 
-serve({
+// Setup graceful shutdown handlers
+setupShutdownHandlers();
+
+// Start server
+const server = serve({
   fetch: app.fetch,
   port,
   hostname: '0.0.0.0',
 });
+
+// Register server for graceful shutdown
+registerServer(server);

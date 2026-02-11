@@ -260,6 +260,24 @@ class HTTPDownloader {
       }
     }
   }
+  
+  /**
+   * Shutdown downloader - save state and cleanup
+   */
+  async shutdown() {
+    console.log('  📥 Saving HTTP download state...');
+    
+    // Save state of active downloads to resume later
+    const activeCount = this.activeDownloads.size;
+    if (activeCount > 0) {
+      console.log(`  💾 ${activeCount} downloads will resume on restart`);
+      // Downloads are persisted in database, no additional action needed
+    }
+    
+    // Clear active downloads map
+    this.activeDownloads.clear();
+    console.log('  ✅ HTTP downloader shutdown complete');
+  }
 }
 
 // Singleton instance
