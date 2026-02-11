@@ -11,17 +11,22 @@ interface WatcherConfig {
 }
 
 let watcher: chokidar.FSWatcher | null = null;
-let scanTimeout: NodeJS.Timeout | null = null;
+let scanTimeouts = new Map<string, NodeJS.Timeout>(); // Separate timeout per path
 
 /**
  * Debounced scan - wait for file operations to complete
  */
 const debouncedScan = (path: string, type: 'movies' | 'tv') => {
-  if (scanTimeout) {
-    clearTimeout(scanTimeout);
+  // Use path as key to allow concurrent scans of movies and TV
+  const key = `${path}:${type}`;
+  
+  // Clear existing timeout for this path
+  if (scanTimeouts.has(key)) {
+    clearTimeout(scanTimeouts.get(key)!);
   }
   
-  scanTimeout = setTimeout(async () => {
+  const timeout = setTimeout(async () => {
+    scanTimeouts.delete(key); // Remove from map when scan starts
     console.log(`🔄 Auto-scanning ${type} folder: ${path}`);
     
     try {
@@ -56,6 +61,9 @@ const debouncedScan = (path: string, type: 'movies' | 'tv') => {
       console.error('Auto-scan error:', error);
     }
   }, 5000); // Wait 5 seconds after last change
+  
+  // Store timeout for cleanup
+  scanTimeouts.set(key, timeout);
 };
 
 /**
@@ -170,10 +178,12 @@ export function stopFileWatcher() {
     console.log('⏹️ File watcher stopped');
   }
   
-  if (scanTimeout) {
-    clearTimeout(scanTimeout);
-    scanTimeout = null;
+  // Clear all pending scan timeouts
+  for (const timeout of scanTimeouts.values()) {
+    clearTimeout(timeout);
   }
+  scanTimeouts.clear();
+  console.log('  🧹 Cleared all pending scans');
 }
 
 /**

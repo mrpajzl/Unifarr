@@ -6,6 +6,7 @@ import { db } from '../db';
 import { mediaItems } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { getTMDBService } from '../routes/settings';
+import { createTMDBRateLimiter } from '../lib/rate-limiter';
 
 interface NewEpisode {
   mediaId: number;
@@ -46,6 +47,9 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
       return [];
     }
     
+    // Create rate limiter (30 requests per 10 seconds)
+    const rateLimiter = createTMDBRateLimiter();
+    
     const newEpisodes: NewEpisode[] = [];
     const today = new Date().toISOString().split('T')[0];
     
@@ -53,6 +57,9 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
       if (!show.tmdbId) continue;
       
       try {
+        // Rate limit TMDB API calls
+        await rateLimiter.waitIfNeeded();
+        
         // Get show details to find latest season
         const details = await tmdb.getTVShowDetails(show.tmdbId);
         
@@ -66,6 +73,9 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
         
         for (const seasonNum of seasonsToCheck) {
           try {
+            // Rate limit TMDB API calls
+            await rateLimiter.waitIfNeeded();
+            
             const season = await tmdb.getTVSeason(show.tmdbId, seasonNum);
             
             if (!season || !season.episodes) continue;
