@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { settings } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -54,18 +56,19 @@ const DEFAULT_SETTINGS = {
 
 // Helper to get a setting from database
 async function getSetting(key: string): Promise<any> {
-  const result = await prisma.setting.findUnique({
-    where: { key },
-  });
+  const result = await db.select()
+    .from(settings)
+    .where(eq(settings.key, key))
+    .limit(1);
   
-  if (!result) {
+  if (result.length === 0) {
     return undefined;
   }
   
   try {
-    return JSON.parse(result.value);
+    return JSON.parse(result[0].value);
   } catch {
-    return result.value;
+    return result[0].value;
   }
 }
 
@@ -73,11 +76,18 @@ async function getSetting(key: string): Promise<any> {
 async function setSetting(key: string, value: any): Promise<void> {
   const jsonValue = typeof value === 'string' ? value : JSON.stringify(value);
   
-  await prisma.setting.upsert({
-    where: { key },
-    update: { value: jsonValue },
-    create: { key, value: jsonValue },
-  });
+  const existing = await db.select()
+    .from(settings)
+    .where(eq(settings.key, key))
+    .limit(1);
+  
+  if (existing.length > 0) {
+    await db.update(settings)
+      .set({ value: jsonValue, updatedAt: new Date() })
+      .where(eq(settings.key, key));
+  } else {
+    await db.insert(settings).values({ key, value: jsonValue });
+  }
 }
 
 // Migration: Load settings.json if exists and migrate to database

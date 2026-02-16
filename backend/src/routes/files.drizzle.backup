@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { files } from '../db/schema';
 import { folderScanner } from '../services/folder-scanner';
 import { getTMDBApiKey } from './settings';
+import { eq } from 'drizzle-orm';
 import { getMediaFileInfo, formatFileSize, formatDuration } from '../services/media-info';
 import { normalizeTitle } from '../lib/normalize';
 
@@ -15,7 +17,7 @@ app.get('/', async (c) => {
 
 // Get unmatched folders (TV shows grouped by series)
 app.get('/unmatched', async (c) => {
-  const unmatched = await prisma.file.findMany({
+  const unmatched = await db.query.files.findMany({
     where: eq(files.matched, false),
   });
   
@@ -115,7 +117,7 @@ app.get('/unmatched', async (c) => {
 // Get folder by ID
 app.get('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
-  const file = await prisma.file.findFirst({
+  const file = await db.query.files.findFirst({
     where: (files, { eq }) => eq(files.id, id),
   });
   
@@ -129,7 +131,7 @@ app.get('/:id', async (c) => {
 // Get detailed file info with ffprobe metadata
 app.get('/:id/info', async (c) => {
   const id = parseInt(c.req.param('id'));
-  const file = await prisma.file.findFirst({
+  const file = await db.query.files.findFirst({
     where: (files, { eq }) => eq(files.id, id),
   });
   

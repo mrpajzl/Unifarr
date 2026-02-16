@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { mediaRequests, users, mediaItems } from '../db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { authenticate, requireAdmin, getUser } from '../lib/auth';
 
 const router = new Hono();
@@ -72,7 +74,7 @@ router.post('/', authenticate, async (c) => {
     }
 
     // Check if user already requested this
-    const existing = await prisma.mediaRequests.findFirst({
+    const existing = await db.query.mediaRequests.findFirst({
       where: and(
         eq(mediaRequests.userId, user.userId),
         eq(mediaRequests.tmdbId, tmdbId),
@@ -88,7 +90,7 @@ router.post('/', authenticate, async (c) => {
     }
 
     // Check if already in library
-    const inLibrary = await prisma.media.findFirst({
+    const inLibrary = await db.query.mediaItems.findFirst({
       where: and(
         eq(mediaItems.tmdbId, tmdbId),
         eq(mediaItems.type, type)
@@ -137,7 +139,7 @@ router.patch('/:id/approve', authenticate, requireAdmin, async (c) => {
     const { adminNote } = await c.req.json();
 
     // Get request
-    const request = await prisma.mediaRequests.findFirst({
+    const request = await db.query.mediaRequests.findFirst({
       where: eq(mediaRequests.id, requestId),
     });
 
@@ -185,7 +187,7 @@ router.patch('/:id/deny', authenticate, requireAdmin, async (c) => {
     const { adminNote } = await c.req.json();
 
     // Get request
-    const request = await prisma.mediaRequests.findFirst({
+    const request = await db.query.mediaRequests.findFirst({
       where: eq(mediaRequests.id, requestId),
     });
 
@@ -232,7 +234,7 @@ router.delete('/:id', authenticate, async (c) => {
     const requestId = parseInt(c.req.param('id'));
 
     // Get request
-    const request = await prisma.mediaRequests.findFirst({
+    const request = await db.query.mediaRequests.findFirst({
       where: eq(mediaRequests.id, requestId),
     });
 

@@ -1,6 +1,6 @@
 import { getWebTorrentClient } from './webtorrent-client';
 import { getHTTPDownloader } from './http-downloader';
-import { queries } from '../../db/prisma';
+import { queries } from '../../db/database';
 import { scanLibrary } from '../scanner';
 import { promises as fs } from 'fs';
 import { join, dirname, basename, extname } from 'path';

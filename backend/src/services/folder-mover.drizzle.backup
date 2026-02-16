@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
 import { join, dirname, basename } from 'path';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { mediaItems, files } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 interface MoveResult {
   success: boolean;
@@ -23,7 +25,7 @@ export async function moveMediaFolder(
 ): Promise<MoveResult> {
   try {
     // Get media item
-    const media = await prisma.media.findFirst({
+    const media = await db.query.mediaItems.findFirst({
       where: eq(mediaItems.id, mediaId),
     });
 
@@ -103,7 +105,7 @@ export async function moveMediaFolder(
       .where(eq(mediaItems.id, mediaId));
 
     // Update all file paths in database
-    const relatedFiles = await prisma.file.findMany({
+    const relatedFiles = await db.query.files.findMany({
       where: eq(files.mediaItemId, mediaId),
     });
 

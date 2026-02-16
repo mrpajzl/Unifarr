@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { getWebTorrentClient } from '../services/download/webtorrent-client';
 import { getHTTPDownloader } from '../services/download/http-downloader';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { downloads } from '../db/schema';
+import { eq, inArray } from 'drizzle-orm';
 
 const router = new Hono();
 

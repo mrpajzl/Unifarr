@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getTMDBService, getTMDBApiKey } from './settings';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { mediaItems } from '../db/schema';
 
 const app = new Hono();
 

@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { files, mediaItems } from '../db/schema';
+import { eq, and, isNull, or } from 'drizzle-orm';
 import { parseMediaFile, parseMediaPath } from '../lib/parser';
 
 const router = new Hono();
@@ -11,7 +13,7 @@ const router = new Hono();
 router.get('/:mediaId/files', async (c) => {
   const mediaId = parseInt(c.req.param('mediaId'));
   
-  const media = await prisma.media.findFirst({
+  const media = await db.query.mediaItems.findFirst({
     where: eq(mediaItems.id, mediaId),
   });
   
@@ -20,7 +22,7 @@ router.get('/:mediaId/files', async (c) => {
   }
   
   // Get ALL files for this media
-  const allFiles = await prisma.file.findMany({
+  const allFiles = await db.query.files.findMany({
     where: eq(files.mediaItemId, mediaId),
   });
   
@@ -140,7 +142,7 @@ router.post('/:mediaId/apply-pattern', async (c) => {
     return c.json({ error: 'regex, seasonGroup, and episodeGroup are required' }, 400);
   }
   
-  const media = await prisma.media.findFirst({
+  const media = await db.query.mediaItems.findFirst({
     where: eq(mediaItems.id, mediaId),
   });
   
@@ -149,7 +151,7 @@ router.post('/:mediaId/apply-pattern', async (c) => {
   }
   
   // Get all unmatched files
-  const unmatchedFiles = await prisma.file.findMany({
+  const unmatchedFiles = await db.query.files.findMany({
     where: and(
       eq(files.mediaItemId, mediaId),
       or(
@@ -225,7 +227,7 @@ router.post('/:mediaId/apply-pattern', async (c) => {
 router.post('/:mediaId/auto-match', async (c) => {
   const mediaId = parseInt(c.req.param('mediaId'));
   
-  const media = await prisma.media.findFirst({
+  const media = await db.query.mediaItems.findFirst({
     where: eq(mediaItems.id, mediaId),
   });
   
@@ -234,7 +236,7 @@ router.post('/:mediaId/auto-match', async (c) => {
   }
   
   // Get all unmatched files
-  const unmatchedFiles = await prisma.file.findMany({
+  const unmatchedFiles = await db.query.files.findMany({
     where: and(
       eq(files.mediaItemId, mediaId),
       or(
@@ -299,7 +301,7 @@ router.post('/file/:fileId/match', async (c) => {
     return c.json({ error: 'season and episode are required' }, 400);
   }
   
-  const file = await prisma.file.findFirst({
+  const file = await db.query.files.findFirst({
     where: eq(files.id, fileId),
   });
   
@@ -331,7 +333,7 @@ router.post('/file/:fileId/match', async (c) => {
 router.post('/file/:fileId/unmatch', async (c) => {
   const fileId = parseInt(c.req.param('fileId'));
   
-  const file = await prisma.file.findFirst({
+  const file = await db.query.files.findFirst({
     where: eq(files.id, fileId),
   });
   

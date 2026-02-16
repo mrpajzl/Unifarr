@@ -1,7 +1,9 @@
 import { glob } from 'glob';
 import { stat, readdir } from 'fs/promises';
 import { parseMediaPath, parseMediaFolderName } from '../lib/parser';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { files, mediaItems } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export interface ScanResult {
   scanned: number;
@@ -41,7 +43,7 @@ export class LibraryScanner {
         
         try {
           // Find or create mediaItem for this TV show
-          let mediaItem = await prisma.media.findFirst({
+          let mediaItem = await db.query.mediaItems.findFirst({
             where: and(
               eq(mediaItems.type, 'tv'),
               eq(mediaItems.libraryPath, showPath)
@@ -73,7 +75,7 @@ export class LibraryScanner {
               const parsedFile = parseMediaPath(filePath);
               
               // Check if file already exists in DB
-              const existing = await prisma.file.findFirst({
+              const existing = await db.query.files.findFirst({
                 where: eq(files.path, filePath),
               });
               
@@ -157,7 +159,7 @@ export class LibraryScanner {
           const parsed = parseMediaPath(filePath);
           
           // Check if file already exists in DB
-          const existing = await prisma.file.findFirst({
+          const existing = await db.query.files.findFirst({
             where: eq(files.path, filePath),
           });
           
@@ -211,7 +213,7 @@ export class LibraryScanner {
   }
   
   async getUnmatchedFiles() {
-    return await prisma.file.findMany({
+    return await db.query.files.findMany({
       where: eq(files.matched, false),
     });
   }

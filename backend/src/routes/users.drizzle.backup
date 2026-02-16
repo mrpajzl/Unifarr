@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { users, mediaRequests } from '../db/schema';
+import { eq, desc, isNull } from 'drizzle-orm';
 import { authenticate, getUser, requireAdmin } from '../lib/auth';
 
 const router = new Hono();
@@ -40,7 +42,7 @@ router.post('/:id/approve', authenticate, requireAdmin, async (c) => {
     }
 
     // Check if user exists
-    const user = await prisma.user.findFirst({
+    const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
       columns: { id: true, username: true, approved: true },
     });
@@ -91,7 +93,7 @@ router.post('/:id/reject', authenticate, requireAdmin, async (c) => {
     }
 
     // Check if user exists
-    const user = await prisma.user.findFirst({
+    const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
       columns: { id: true, username: true, approved: true },
     });
@@ -145,7 +147,7 @@ router.delete('/:id', authenticate, requireAdmin, async (c) => {
     }
 
     // Check if user exists
-    const user = await prisma.user.findFirst({
+    const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
       columns: { id: true, username: true },
     });
@@ -204,7 +206,7 @@ router.put('/:id/role', authenticate, requireAdmin, async (c) => {
     }
 
     // Check if user exists
-    const user = await prisma.user.findFirst({
+    const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
       columns: { id: true, username: true, role: true },
     });

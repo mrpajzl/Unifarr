@@ -159,7 +159,7 @@ app.post('/download', async (c) => {
       // Try to get media item to determine path
       const { mediaItems } = await import('../db/schema');
       const { db } = await import('../db');
-      const media = await prisma.media.findFirst({
+      const media = await db.query.mediaItems.findFirst({
         where: (mediaItems, { eq }) => eq(mediaItems.id, mediaId),
       });
       

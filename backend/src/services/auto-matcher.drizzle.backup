@@ -1,4 +1,6 @@
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { files, mediaItems } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { getTMDBService, getTMDBApiKey } from '../routes/settings';
 import { normalizeTitle } from '../lib/normalize';
 
@@ -59,7 +61,7 @@ function levenshteinDistance(str1: string, str2: string): number {
 export async function autoMatchFolder(folderId: number): Promise<boolean> {
   try {
     // Get folder data
-    const folder = await prisma.file.findFirst({
+    const folder = await db.query.files.findFirst({
       where: eq(files.id, folderId),
     });
     
@@ -185,7 +187,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
     
     // Check if media item already exists
     let mediaId: number | undefined;
-    const existing = await prisma.media.findFirst({
+    const existing = await db.query.mediaItems.findFirst({
       where: eq(mediaItems.tmdbId, best.id),
     });
     
@@ -254,7 +256,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
     // If it's a TV show, match all episodes in the same show folder
     if (!isMovie) {
       // Get the matched folder
-      const folder = await prisma.file.findFirst({
+      const folder = await db.query.files.findFirst({
         where: eq(files.id, folderId),
       });
       
@@ -279,7 +281,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
         console.log(`  📁 Show folder: ${showFolder}`);
         
         // Match ALL unmatched episodes in the same show folder
-        const allUnmatched = await prisma.file.findMany({
+        const allUnmatched = await db.query.files.findMany({
           where: (files, { and, eq, isNotNull }) => and(
             eq(files.matched, false),
             isNotNull(files.parsedSeason)
@@ -333,7 +335,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
  * Auto-match all unmatched folders
  */
 export async function autoMatchAll(): Promise<{ matched: number; skipped: number }> {
-  const unmatched = await prisma.file.findMany({
+  const unmatched = await db.query.files.findMany({
     where: eq(files.matched, false),
   });
   

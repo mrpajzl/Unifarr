@@ -1,4 +1,6 @@
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { mediaItems } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { getTMDBApiKey } from '../routes/settings';
 
 interface TMDBSearchResult {
@@ -16,7 +18,7 @@ interface TMDBSearchResult {
  */
 export async function autoIdentifyMedia(mediaItemId: number): Promise<boolean> {
   try {
-    const mediaItem = await prisma.media.findFirst({
+    const mediaItem = await db.query.mediaItems.findFirst({
       where: eq(mediaItems.id, mediaItemId),
     });
 
