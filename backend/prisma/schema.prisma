@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("user")
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  mediaRequests        MediaRequest[] @relation("UserRequests")
+  processedRequests    MediaRequest[] @relation("ProcessedBy")
+
+  @@map("users")
+}
+
+model Media {
+  id                Int       @id @default(autoincrement())
+  type              String
+  title             String
+  originalTitle     String?   @map("original_title")
+  year              Int?
+  tmdbId            Int?      @map("tmdb_id")
+  imdbId            String?   @map("imdb_id")
+  overview          String?
+  posterPath        String?   @map("poster_path")
+  backdropPath      String?   @map("backdrop_path")
+  voteAverage       Float?    @map("vote_average")
+  voteCount         Int?      @map("vote_count")
+  genres            String?
+  runtime           Int?
+  status            String?
+  numberOfSeasons   Int?      @map("number_of_seasons")
+  numberOfEpisodes  Int?      @map("number_of_episodes")
+  monitored         Boolean   @default(false)
+  libraryPath       String?   @map("library_path")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  files         File[]
+  downloads     Download[]
+  mediaRequests MediaRequest[]
+
+  @@map("media")
+}
+
+model File {
+  id              Int       @id @default(autoincrement())
+  path            String
+  filename        String
+  size            BigInt?
+  parsedTitle     String?   @map("parsed_title")
+  parsedYear      Int?      @map("parsed_year")
+  parsedSeason    Int?      @map("parsed_season")
+  parsedEpisode   Int?      @map("parsed_episode")
+  parsedQuality   String?   @map("parsed_quality")
+  parsedEdition   String?   @map("parsed_edition")
+  parsedCodec     String?   @map("parsed_codec")
+  parsedSource    String?   @map("parsed_source")
+  mediaItemId     Int?      @map("media_item_id")
+  matched         Boolean   @default(false)
+  matchConfidence Float?    @map("match_confidence")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  scannedAt       DateTime? @map("scanned_at")
+
+  media            Media?            @relation(fields: [mediaItemId], references: [id])
+  matchCandidates  MatchCandidate[]
+
+  @@map("files")
+}
+
+model Download {
+  id            Int       @id @default(autoincrement())
+  mediaItemId   Int?      @map("media_item_id")
+  torrentHash   String?   @map("torrent_hash")
+  name          String?
+  status        String?
+  progress      Float?
+  downloadSpeed Int?      @map("download_speed")
+  eta           Int?
+  error         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  completedAt   DateTime? @map("completed_at")
+
+  media Media? @relation(fields: [mediaItemId], references: [id])
+
+  @@map("downloads")
+}
+
+model MatchCandidate {
+  id         Int      @id @default(autoincrement())
+  fileId     Int?     @map("file_id")
+  tmdbId     Int      @map("tmdb_id")
+  type       String
+  title      String
+  year       Int?
+  posterPath String?  @map("poster_path")
+  matchScore Float?   @map("match_score")
+  status     String   @default("pending")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  file File? @relation(fields: [fileId], references: [id])
+
+  @@map("match_candidates")
+}
+
+model MediaRequest {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  tmdbId       Int       @map("tmdb_id")
+  type         String
+  title        String
+  year         Int?
+  posterPath   String?   @map("poster_path")
+  status       String    @default("pending")
+  userNote     String?   @map("user_note")
+  adminNote    String?   @map("admin_note")
+  requestedAt  DateTime  @default(now()) @map("requested_at")
+  processedAt  DateTime? @map("processed_at")
+  processedBy  Int?      @map("processed_by")
+  mediaItemId  Int?      @map("media_item_id")
+
+  user      User   @relation("UserRequests", fields: [userId], references: [id])
+  processor User?  @relation("ProcessedBy", fields: [processedBy], references: [id])
+  media     Media? @relation(fields: [mediaItemId], references: [id])
+
+  @@map("media_requests")
+}
+
+model Provider {
+  id             Int       @id @default(autoincrement())
+  name           String
+  type           String
+  baseUrl        String    @map("base_url")
+  enabled        Boolean   @default(true)
+  config         String?
+  supportedTypes String?   @map("supported_types")
+  priority       Int       @default(50)
+  lastCheck      DateTime? @map("last_check")
+  status         String?
+  errorMessage   String?   @map("error_message")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  searches Search[]
+
+  @@map("providers")
+}
+
+model Search {
+  id           Int      @id @default(autoincrement())
+  query        String
+  type         String?
+  providerId   Int?     @map("provider_id")
+  resultsCount Int?     @map("results_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  provider Provider? @relation(fields: [providerId], references: [id])
+
+  @@map("searches")
+}
