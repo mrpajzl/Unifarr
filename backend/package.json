@@ -45,9 +45,5 @@
     "drizzle-kit": "^0.31.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
-  },
-  "optionalDependencies": {
-    "bufferutil": "*",
-    "utf-8-validate": "*"
   }
 }
