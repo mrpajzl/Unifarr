@@ -245,7 +245,7 @@ export async function autoDownloadEpisode(episode: NewEpisode): Promise<boolean>
         const downloader = await getHTTPDownloader();
         
         const filename = `${bestResult.title}.${episode.season}x${episode.episode}.mkv`;
-        await downloader.addDownload(downloadLink, savePath, filename);
+        await downloader.downloadFile(downloadLink, filename, episode.mediaId, savePath);
         
         console.log(`  ✅ Download started via Webshare: ${filename}`);
         return true;
