@@ -25,7 +25,7 @@ app.get('/tmdb/movie', async (c) => {
     // Search local database for existing matches
     let localMedia = [];
     try {
-      localMedia = await db.select().from(mediaItems);
+      localMedia = await prisma.from(mediaItems);
     } catch (error) {
       console.error('Failed to fetch local media:', error);
     }
@@ -83,7 +83,7 @@ app.get('/tmdb/tv', async (c) => {
     // Search local database for existing matches
     let localMedia = [];
     try {
-      localMedia = await db.select().from(mediaItems);
+      localMedia = await prisma.from(mediaItems);
     } catch (error) {
       console.error('Failed to fetch local media:', error);
     }
@@ -140,7 +140,7 @@ app.get('/tmdb/multi', async (c) => {
     // Search local database for existing matches
     let localMedia = [];
     try {
-      localMedia = await db.select().from(mediaItems);
+      localMedia = await prisma.from(mediaItems);
     } catch (error) {
       console.error('Failed to fetch local media:', error);
     }

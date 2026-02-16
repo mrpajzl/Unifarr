@@ -541,7 +541,7 @@ app.patch('/:id/identify', async (c) => {
       return c.json({ error: 'Failed to fetch from TMDB' }, 500);
     }
     
-    const tmdbData = await response.json();
+    const tmdbData = await response.json() as any;
     
     // Update media item with TMDB data
     const updateData: any = {

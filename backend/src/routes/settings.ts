@@ -115,7 +115,7 @@ async function getSettings() {
   // Check if migration is needed
   await migrateFromFile();
   
-  const allSettings = await db.select().from(settings);
+  const allSettings = await prisma.from(settings);
   
   // Start with defaults
   const result = { ...DEFAULT_SETTINGS };

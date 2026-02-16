@@ -9,14 +9,14 @@ const app = new Hono();
 
 // Get all folders (media items)
 app.get('/', async (c) => {
-  const allFiles = await db.select().from(files);
+  const allFiles = await prisma.file.findMany();
   return c.json(allFiles);
 });
 
 // Get unmatched folders (TV shows grouped by series)
 app.get('/unmatched', async (c) => {
   const unmatched = await prisma.file.findMany({
-    where: eq(files.matched, false),
+    where: { matched: false },
   });
   
   // Group TV shows by normalized title (removes diacritics, articles, special chars)
@@ -50,7 +50,7 @@ app.get('/unmatched', async (c) => {
     });
     
     const firstEp = episodes[0];
-    const totalSize = episodes.reduce((sum, ep) => sum + (ep.size || 0), 0);
+    const totalSize = episodes.reduce((sum, ep) => sum + Number(ep.size || 0), 0);
     
     // Use the most common title variant (or the one with "The" if exists)
     const titleCounts = new Map<string, number>();
@@ -115,8 +115,8 @@ app.get('/unmatched', async (c) => {
 // Get folder by ID
 app.get('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
-  const file = await prisma.file.findFirst({
-    where: (files, { eq }) => eq(files.id, id),
+  const file = await prisma.file.findUnique({
+    where: { id },
   });
   
   if (!file) {
@@ -129,8 +129,8 @@ app.get('/:id', async (c) => {
 // Get detailed file info with ffprobe metadata
 app.get('/:id/info', async (c) => {
   const id = parseInt(c.req.param('id'));
-  const file = await prisma.file.findFirst({
-    where: (files, { eq }) => eq(files.id, id),
+  const file = await prisma.file.findUnique({
+    where: { id },
   });
   
   if (!file) {
@@ -197,7 +197,9 @@ app.post('/scan', async (c) => {
 // Delete folder record (not the actual folder)
 app.delete('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
-  await db.delete(files).where(eq(files.id, id));
+  await prisma.file.delete({
+    where: { id },
+  });
   return c.json({ success: true });
 });
 

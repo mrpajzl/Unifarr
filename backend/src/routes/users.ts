@@ -10,15 +10,16 @@ const router = new Hono();
  */
 router.get('/', authenticate, requireAdmin, async (c) => {
   try {
-    const allUsers = await db.select({
-      id: users.id,
-      username: users.username,
-      role: users.role,
-      approved: users.approved,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .orderBy(desc(users.createdAt));
+    const allUsers = await prisma.user.findMany({ 
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        approved: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     return c.json({ users: allUsers });
   } catch (error: any) {
@@ -42,7 +43,7 @@ router.post('/:id/approve', authenticate, requireAdmin, async (c) => {
     // Check if user exists
     const user = await prisma.user.findFirst({
       where: eq(users.id, userId),
-      columns: { id: true, username: true, approved: true },
+      select: { id: true, username: true, approved: true },
     });
     
     if (!user) {
@@ -93,7 +94,7 @@ router.post('/:id/reject', authenticate, requireAdmin, async (c) => {
     // Check if user exists
     const user = await prisma.user.findFirst({
       where: eq(users.id, userId),
-      columns: { id: true, username: true, approved: true },
+      select: { id: true, username: true, approved: true },
     });
     
     if (!user) {
@@ -103,9 +104,9 @@ router.post('/:id/reject', authenticate, requireAdmin, async (c) => {
     // Clean up foreign key references before deleting user
     try {
       // Set processedBy to NULL for requests processed by this user
-      await db.update(mediaRequests)
-        .set({ processedBy: null })
-        .where(eq(mediaRequests.processedBy, userId));
+      await prisma.mediaRequest.updateMany(
+        { data: { processedBy: null },
+         where: { processedBy: userId } });
       
       // Delete requests created by this user
       await db.delete(mediaRequests)
@@ -115,7 +116,7 @@ router.post('/:id/reject', authenticate, requireAdmin, async (c) => {
     }
     
     // Delete user
-    await db.delete(users).where(eq(users.id, userId));
+    await prisma.user.delete({ where: { id: userId } });
 
     return c.json({ 
       message: `User ${user.username} deleted successfully`,
@@ -147,7 +148,7 @@ router.delete('/:id', authenticate, requireAdmin, async (c) => {
     // Check if user exists
     const user = await prisma.user.findFirst({
       where: eq(users.id, userId),
-      columns: { id: true, username: true },
+      select: { id: true, username: true },
     });
     
     if (!user) {
@@ -157,9 +158,9 @@ router.delete('/:id', authenticate, requireAdmin, async (c) => {
     // Clean up foreign key references before deleting user
     try {
       // Set processedBy to NULL for requests processed by this user
-      await db.update(mediaRequests)
-        .set({ processedBy: null })
-        .where(eq(mediaRequests.processedBy, userId));
+      await prisma.mediaRequest.updateMany(
+        { data: { processedBy: null },
+         where: { processedBy: userId } });
       
       // Delete requests created by this user
       await db.delete(mediaRequests)
@@ -169,7 +170,7 @@ router.delete('/:id', authenticate, requireAdmin, async (c) => {
     }
     
     // Delete user
-    await db.delete(users).where(eq(users.id, userId));
+    await prisma.user.delete({ where: { id: userId } });
 
     return c.json({ 
       message: `User ${user.username} deleted successfully`,
@@ -206,7 +207,7 @@ router.put('/:id/role', authenticate, requireAdmin, async (c) => {
     // Check if user exists
     const user = await prisma.user.findFirst({
       where: eq(users.id, userId),
-      columns: { id: true, username: true, role: true },
+      select: { id: true, username: true, role: true },
     });
     
     if (!user) {

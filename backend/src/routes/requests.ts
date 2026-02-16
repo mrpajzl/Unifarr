@@ -18,29 +18,19 @@ router.get('/', authenticate, async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const query = db.select({
-      id: mediaRequests.id,
-      userId: mediaRequests.userId,
-      username: users.username,
-      tmdbId: mediaRequests.tmdbId,
-      type: mediaRequests.type,
-      title: mediaRequests.title,
-      year: mediaRequests.year,
-      posterPath: mediaRequests.posterPath,
-      status: mediaRequests.status,
-      userNote: mediaRequests.userNote,
-      adminNote: mediaRequests.adminNote,
-      requestedAt: mediaRequests.requestedAt,
-      processedAt: mediaRequests.processedAt,
-      mediaItemId: mediaRequests.mediaItemId,
-    })
-    .from(mediaRequests)
-    .leftJoin(users, eq(mediaRequests.userId, users.id))
-    .orderBy(desc(mediaRequests.requestedAt));
-
-    const requests = user.role === 'admin'
-      ? await query
-      : await query.where(eq(mediaRequests.userId, user.userId));
+    const whereClause = user.role === 'admin' ? {} : { userId: user.userId };
+    
+    const requests = await prisma.mediaRequest.findMany({
+      where: whereClause,
+      include: {
+        user: {
+          select: {
+            username: true,
+          },
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
 
     return c.json({ requests });
   } catch (error: any) {
@@ -72,12 +62,12 @@ router.post('/', authenticate, async (c) => {
     }
 
     // Check if user already requested this
-    const existing = await prisma.mediaRequests.findFirst({
-      where: and(
-        eq(mediaRequests.userId, user.userId),
-        eq(mediaRequests.tmdbId, tmdbId),
-        eq(mediaRequests.type, type)
-      ),
+    const existing = await prisma.mediaRequest.findFirst({
+      where: {
+        userId: user.userId,
+        tmdbId,
+        type,
+      },
     });
 
     if (existing) {
@@ -89,10 +79,10 @@ router.post('/', authenticate, async (c) => {
 
     // Check if already in library
     const inLibrary = await prisma.media.findFirst({
-      where: and(
-        eq(mediaItems.tmdbId, tmdbId),
-        eq(mediaItems.type, type)
-      ),
+      where: {
+        tmdbId,
+        type,
+      },
     });
 
     if (inLibrary) {
@@ -103,16 +93,18 @@ router.post('/', authenticate, async (c) => {
     }
 
     // Create request
-    const [newRequest] = await db.insert(mediaRequests).values({
-      userId: user.userId,
-      tmdbId,
-      type,
-      title,
-      year: year || null,
-      posterPath: posterPath || null,
-      userNote: userNote || null,
-      status: 'pending',
-    }).returning();
+    const newRequest = await prisma.mediaRequest.create({
+      data: {
+        userId: user.userId,
+        tmdbId,
+        type,
+        title,
+        year: year || null,
+        posterPath: posterPath || null,
+        userNote: userNote || null,
+        status: 'pending',
+      },
+    });
 
     return c.json({ request: newRequest }, 201);
   } catch (error: any) {
@@ -137,7 +129,7 @@ router.patch('/:id/approve', authenticate, requireAdmin, async (c) => {
     const { adminNote } = await c.req.json();
 
     // Get request
-    const request = await prisma.mediaRequests.findFirst({
+    const request = await prisma.mediaRequest.findFirst({
       where: eq(mediaRequests.id, requestId),
     });
 
@@ -185,7 +177,7 @@ router.patch('/:id/deny', authenticate, requireAdmin, async (c) => {
     const { adminNote } = await c.req.json();
 
     // Get request
-    const request = await prisma.mediaRequests.findFirst({
+    const request = await prisma.mediaRequest.findFirst({
       where: eq(mediaRequests.id, requestId),
     });
 
@@ -198,15 +190,15 @@ router.patch('/:id/deny', authenticate, requireAdmin, async (c) => {
     }
 
     // Update request status
-    const [updated] = await db.update(mediaRequests)
-      .set({
+    const updated = await prisma.mediaRequest.update({
+      where: { id: requestId },
+      data: {
         status: 'denied',
         processedAt: new Date(),
         processedBy: user.userId,
         adminNote: adminNote || null,
-      })
-      .where(eq(mediaRequests.id, requestId))
-      .returning();
+      },
+    });
 
     return c.json({ request: updated });
   } catch (error: any) {
@@ -232,7 +224,7 @@ router.delete('/:id', authenticate, async (c) => {
     const requestId = parseInt(c.req.param('id'));
 
     // Get request
-    const request = await prisma.mediaRequests.findFirst({
+    const request = await prisma.mediaRequest.findFirst({
       where: eq(mediaRequests.id, requestId),
     });
 
@@ -251,7 +243,9 @@ router.delete('/:id', authenticate, async (c) => {
     }
 
     // Delete request
-    await db.delete(mediaRequests).where(eq(mediaRequests.id, requestId));
+    await prisma.mediaRequest.delete({
+      where: { id: requestId },
+    });
 
     return c.json({ message: 'Request deleted successfully' });
   } catch (error: any) {
