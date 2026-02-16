@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { getTMDBService } from './settings';
-import { db } from '../db';
-import { mediaItems } from '../db/schema';
+import { prisma } from '../db/prisma';
 
 const app = new Hono();
 
@@ -25,20 +24,20 @@ app.get('/trending/:mediaType/:timeWindow', async (c) => {
     const tmdb = await getTMDBService();
     
     const endpoint = `/trending/${mediaType}/${timeWindow}`;
-    const data = await tmdb['fetch'](endpoint, { page });
+    const data = await (tmdb as any)['fetch'](endpoint, { page });
     
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: item.media_type || mediaType,
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Trending error:', error);
     return c.json({ 
@@ -58,20 +57,20 @@ app.get('/popular/movies', async (c) => {
     const tmdb = await getTMDBService();
     
     
-    const data = await tmdb['fetch']('/movie/popular', { page });
+    const data = await (tmdb as any)['fetch']('/movie/popular', { page });
     
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: 'movie',
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Popular movies error:', error);
     return c.json({ 
@@ -89,20 +88,20 @@ app.get('/popular/tv', async (c) => {
     const page = parseInt(c.req.query('page') || '1');
     
     const tmdb = await getTMDBService();
-    const data = await tmdb['fetch']('/tv/popular', { page });
+    const data = await (tmdb as any)['fetch']('/tv/popular', { page });
     
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: 'tv',
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Popular TV error:', error);
     return c.json({ 
@@ -120,20 +119,20 @@ app.get('/top-rated/movies', async (c) => {
     const page = parseInt(c.req.query('page') || '1');
     
     const tmdb = await getTMDBService();
-    const data = await tmdb['fetch']('/movie/top_rated', { page });
+    const data = await (tmdb as any)['fetch']('/movie/top_rated', { page });
     
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: 'movie',
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Top rated movies error:', error);
     return c.json({ 
@@ -151,20 +150,20 @@ app.get('/top-rated/tv', async (c) => {
     const page = parseInt(c.req.query('page') || '1');
     
     const tmdb = await getTMDBService();
-    const data = await tmdb['fetch']('/tv/top_rated', { page });
+    const data = await (tmdb as any)['fetch']('/tv/top_rated', { page });
     
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: 'tv',
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Top rated TV error:', error);
     return c.json({ 
@@ -182,19 +181,19 @@ app.get('/now-playing', async (c) => {
     const page = parseInt(c.req.query('page') || '1');
     
     const tmdb = await getTMDBService();
-    const data = await tmdb['fetch']('/movie/now_playing', { page });
+    const data = await (tmdb as any)['fetch']('/movie/now_playing', { page });
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: 'movie',
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Now playing error:', error);
     return c.json({ 
@@ -212,19 +211,19 @@ app.get('/upcoming', async (c) => {
     const page = parseInt(c.req.query('page') || '1');
     
     const tmdb = await getTMDBService();
-    const data = await tmdb['fetch']('/movie/upcoming', { page });
+    const data = await (tmdb as any)['fetch']('/movie/upcoming', { page });
     
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark items already in library
-    const results = (data.results || []).map((item: any) => ({
+    const results = ((data as any).results || []).map((item: any) => ({
       ...item,
       inLibrary: inLibraryIds.has(item.id),
       media_type: 'movie',
     }));
     
-    return c.json({ results, page: data.page, total_pages: data.total_pages });
+    return c.json({ results, page: data.page, total_pages: (data as any).total_pages });
   } catch (error) {
     console.error('Upcoming error:', error);
     return c.json({ 
@@ -245,8 +244,8 @@ app.get('/person/:id', async (c) => {
     // Get person details with credits
     const person = await tmdb['fetch'](`/person/${id}`, { append_to_response: 'movie_credits,tv_credits' });
     // Get list of TMDB IDs already in library
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     // Mark movies/shows already in library
     if (person.movie_credits?.cast) {
@@ -290,8 +289,8 @@ app.get('/details/:mediaType/:id', async (c) => {
     // Get details
     const details = await tmdb['fetch'](`/${mediaType}/${id}`, { append_to_response: 'videos,credits' });
     
-    const allMedia = await db.select({ tmdbId: mediaItems.tmdbId }).from(mediaItems);
-    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter(Boolean));
+    const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
+    const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
     
     return c.json({
       ...details,

@@ -7,9 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy"
   },
   "keywords": [
     "media",
@@ -32,12 +33,10 @@
     "cheerio": "^1.2.0",
     "chokidar": "^5.0.0",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.45.1",
     "glob": "^13.0.1",
     "hono": "^4.11.8",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.18.0",
-    "postgres": "^3.4.8",
     "prisma": "^7.4.0",
     "tmdb-ts": "^2.2.0",
     "webtorrent": "^2.8.5",
@@ -46,7 +45,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.2.1",
-    "drizzle-kit": "^0.31.3",
+    "@types/pg": "^8.16.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },

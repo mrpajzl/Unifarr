@@ -1,9 +1,7 @@
 import chokidar from 'chokidar';
 import { folderScanner } from './folder-scanner';
 import { autoMatchFolder } from './auto-matcher';
-import { db } from '../db';
-import { files } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { prisma } from '../db/prisma';
 
 interface WatcherConfig {
   moviesPath?: string;
@@ -42,8 +40,8 @@ const debouncedScan = (path: string, type: 'movies' | 'tv') => {
       // Auto-match new files
       if (result.added > 0) {
         console.log('🎯 Auto-matching new files...');
-        const unmatched = await db.query.files.findMany({
-          where: eq(files.matched, false),
+        const unmatched = await prisma.file.findMany({
+          where: { matched: false },
         });
         
         let matched = 0;

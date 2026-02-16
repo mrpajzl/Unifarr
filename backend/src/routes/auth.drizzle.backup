@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
+import { db } from '../db';
+import { users } from '../db/schema';
+import { eq, count } from 'drizzle-orm';
 import {
   hashPassword,
   verifyPassword,
@@ -28,8 +30,8 @@ router.post('/register', async (c) => {
     }
 
     // Check if username already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { username },
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.username, username),
     });
 
     if (existingUser) {
@@ -37,7 +39,8 @@ router.post('/register', async (c) => {
     }
 
     // Check if this is the first user (will be admin and auto-approved)
-    const userCount = await prisma.user.count();
+    const [userCountResult] = await db.select({ count: count() }).from(users);
+    const userCount = userCountResult.count;
     const role = userCount === 0 ? 'admin' : 'user';
     const approved = userCount === 0; // First user auto-approved
 
@@ -45,14 +48,12 @@ router.post('/register', async (c) => {
     const passwordHash = await hashPassword(password);
 
     // Create user
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        password: passwordHash,
-        role,
-        approved,
-      },
-    });
+    const [newUser] = await db.insert(users).values({
+      username,
+      password: passwordHash,
+      role,
+      approved,
+    }).returning();
 
     // If user is not approved (not first user), return pending message
     if (!approved) {
@@ -103,8 +104,8 @@ router.post('/login', async (c) => {
     }
 
     // Find user
-    const user = await prisma.user.findUnique({
-      where: { username },
+    const user = await db.query.users.findFirst({
+      where: eq(users.username, username),
     });
 
     if (!user) {
@@ -157,9 +158,9 @@ router.get('/me', authenticate, async (c) => {
     }
 
     // Fetch fresh user data
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.userId },
-      select: {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, authUser.userId),
+      columns: {
         id: true,
         username: true,
         role: true,

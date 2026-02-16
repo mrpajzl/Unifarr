@@ -98,9 +98,8 @@ async function cleanupResources() {
   // 7. Close database connections
   try {
     console.log('  🗄️ Closing database connections...');
-    const { db } = await import('./db');
-    // Drizzle doesn't have explicit close, but we'll flush any pending writes
-    // by importing and letting the connection pool drain
+    const { prisma } = await import('./db/prisma');
+    await prisma.$disconnect();
     console.log('  ✅ Database connections closed');
   } catch (error) {
     console.error('  ❌ Error closing database:', error);

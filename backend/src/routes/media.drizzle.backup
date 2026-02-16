@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
-import { prisma } from '../db/prisma';
-import { getTMDBService, getTMDBApiKey, getSettings } from './settings';
+import { db } from '../db';
+import { mediaItems, files } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { getTMDBService, getTMDBApiKey } from './settings';
 import { autoMatchFolder, autoMatchAll } from '../services/auto-matcher';
 import { mkdir } from 'fs/promises';
 import path from 'path';
@@ -11,15 +13,15 @@ const app = new Hono();
 
 // Get all media items
 app.get('/', async (c) => {
-  const allMedia = await prisma.media.findMany();
+  const allMedia = await db.select().from(mediaItems);
   return c.json(allMedia);
 });
 
 // Get media item by ID
 app.get('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
-  const media = await prisma.media.findUnique({
-    where: { id },
+  const media = await db.query.mediaItems.findFirst({
+    where: (mediaItems, { eq }) => eq(mediaItems.id, id),
   });
   
   if (!media) {
@@ -33,8 +35,8 @@ app.get('/:id', async (c) => {
 app.get('/:id/episodes', async (c) => {
   const id = parseInt(c.req.param('id'));
   
-  const media = await prisma.media.findUnique({
-    where: { id },
+  const media = await db.query.mediaItems.findFirst({
+    where: (mediaItems, { eq }) => eq(mediaItems.id, id),
   });
   
   if (!media) {
@@ -46,8 +48,8 @@ app.get('/:id/episodes', async (c) => {
   }
   
   // Get all files for this media item
-  const mediaFiles = await prisma.file.findMany({
-    where: { mediaItemId: id },
+  const mediaFiles = await db.query.files.findMany({
+    where: eq(files.mediaItemId, id),
   });
   
   // Group by season
@@ -76,7 +78,7 @@ app.get('/:id/episodes', async (c) => {
             id: ep.id,
             filename: ep.filename,
             path: ep.path,
-            size: Number(ep.size || 0),
+            size: ep.size || 0,
             quality: ep.parsedQuality,
           },
         })),
@@ -124,6 +126,7 @@ app.post('/', async (c) => {
   // Determine library path
   let libraryPath: string | undefined;
   try {
+    const { getSettings } = await import('./settings');
     const settings = await getSettings();
     
     const basePath = type === 'movie' ? settings.moviesPath : settings.tvPath;
@@ -134,27 +137,25 @@ app.post('/', async (c) => {
   }
   
   // Insert into database
-  const inserted = await prisma.media.create({
-    data: {
-      type,
-      title,
-      originalTitle: 'original_title' in mediaData ? mediaData.original_title : ('original_name' in mediaData ? mediaData.original_name : undefined),
-      year,
-      tmdbId: mediaData.id,
-      imdbId: 'imdb_id' in mediaData ? mediaData.imdb_id : undefined,
-      overview: mediaData.overview,
-      posterPath: mediaData.poster_path,
-      backdropPath: mediaData.backdrop_path,
-      voteAverage: mediaData.vote_average,
-      voteCount: mediaData.vote_count,
-      genres: JSON.stringify(mediaData.genres),
-      runtime: 'runtime' in mediaData ? mediaData.runtime : undefined,
-      numberOfSeasons: 'number_of_seasons' in mediaData ? mediaData.number_of_seasons : undefined,
-      numberOfEpisodes: 'number_of_episodes' in mediaData ? mediaData.number_of_episodes : undefined,
-      status: mediaData.status,
-      libraryPath, // Store the library path
-    },
-  });
+  const [inserted] = await db.insert(mediaItems).values({
+    type,
+    title,
+    originalTitle: 'original_title' in mediaData ? mediaData.original_title : ('original_name' in mediaData ? mediaData.original_name : undefined),
+    year,
+    tmdbId: mediaData.id,
+    imdbId: 'imdb_id' in mediaData ? mediaData.imdb_id : undefined,
+    overview: mediaData.overview,
+    posterPath: mediaData.poster_path,
+    backdropPath: mediaData.backdrop_path,
+    voteAverage: mediaData.vote_average,
+    voteCount: mediaData.vote_count,
+    genres: JSON.stringify(mediaData.genres),
+    runtime: 'runtime' in mediaData ? mediaData.runtime : undefined,
+    numberOfSeasons: 'number_of_seasons' in mediaData ? mediaData.number_of_seasons : undefined,
+    numberOfEpisodes: 'number_of_episodes' in mediaData ? mediaData.number_of_episodes : undefined,
+    status: mediaData.status,
+    libraryPath, // Store the library path
+  }).returning();
   
   // Create folder in library
   if (libraryPath) {
@@ -166,18 +167,16 @@ app.post('/', async (c) => {
       console.log(`✅ Created folder: ${libraryPath}`);
       
       // Create file record
-      await prisma.file.create({
-        data: {
-          path: libraryPath,
-          filename: folderName,
-          parsedTitle: title,
-          parsedYear: year,
-          size: BigInt(0),
-          matched: true,
-          mediaItemId: inserted.id,
-          matchConfidence: 1.0,
-          scannedAt: new Date(),
-        },
+      await db.insert(files).values({
+        path: libraryPath,
+        filename: folderName,
+        parsedTitle: title,
+        parsedYear: year,
+        size: 0,
+        matched: true,
+        mediaItemId: inserted.id,
+        matchConfidence: 1.0,
+        scannedAt: new Date(),
       });
     } catch (error) {
       console.error('Failed to create folder:', error);
@@ -199,8 +198,8 @@ app.post('/:id/match', async (c) => {
   }
   
   // Get the file to check if it's a TV show
-  const file = await prisma.file.findUnique({
-    where: { id: fileId },
+  const file = await db.query.files.findFirst({
+    where: eq(files.id, fileId),
   });
   
   if (!file) {
@@ -208,21 +207,20 @@ app.post('/:id/match', async (c) => {
   }
   
   // Update file record
-  await prisma.file.update({
-    where: { id: fileId },
-    data: {
+  await db.update(files)
+    .set({
       mediaItemId: mediaId,
       matched: true,
       matchConfidence: confidence,
-    },
-  });
+    })
+    .where(eq(files.id, fileId));
   
   let matchedCount = 1;
   
   // If it's a TV show, match all episodes in the same show folder
   if (file.parsedSeason !== null && file.parsedSeason !== undefined) {
-    // Extract show folder from path
-    const pathModule = await import('path');
+    // Extract show folder from path (parent of Season folder or file)
+    const path = await import('path');
     let showFolder = file.path;
     const parts = file.path.split('/');
     
@@ -242,12 +240,12 @@ app.post('/:id/match', async (c) => {
     console.log(`📁 Show folder: ${showFolder}`);
     
     // Match ALL unmatched episodes in the same show folder
-    const allUnmatched = await prisma.file.findMany({
-      where: {
-        id: { not: fileId }, // Not the same file
-        matched: false, // Not already matched
-        parsedSeason: { not: null },
-      },
+    const allUnmatched = await db.query.files.findMany({
+      where: (files, { and, eq, ne, isNotNull }) => and(
+        ne(files.id, fileId), // Not the same file
+        eq(files.matched, false), // Not already matched
+        isNotNull(files.parsedSeason)
+      ),
     });
     
     // Filter by show folder
@@ -271,14 +269,13 @@ app.post('/:id/match', async (c) => {
     
     if (relatedEpisodes.length > 0) {
       for (const episode of relatedEpisodes) {
-        await prisma.file.update({
-          where: { id: episode.id },
-          data: {
+        await db.update(files)
+          .set({
             mediaItemId: mediaId,
             matched: true,
             matchConfidence: confidence,
-          },
-        });
+          })
+          .where(eq(files.id, episode.id));
       }
       matchedCount += relatedEpisodes.length;
       console.log(`✅ Matched ${relatedEpisodes.length} related episodes in folder "${showFolder}"`);
@@ -297,16 +294,22 @@ app.delete('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
   
   try {
-    // Unlink all files
-    await prisma.file.updateMany({
-      where: { mediaItemId: id },
-      data: { mediaItemId: null, matched: false },
+    // Get all files linked to this media item
+    const linkedFiles = await db.query.files.findMany({
+      where: eq(files.mediaItemId, id),
     });
     
+    console.log(`Unlinking ${linkedFiles.length} files from media item ${id}`);
+    
+    // Unlink each file individually
+    for (const file of linkedFiles) {
+      await db.update(files)
+        .set({ mediaItemId: null, matched: false })
+        .where(eq(files.id, file.id));
+    }
+    
     // Delete media item
-    await prisma.media.delete({
-      where: { id },
-    });
+    const result = await db.delete(mediaItems).where(eq(mediaItems.id, id));
     
     console.log(`Deleted media item ${id}`);
     
@@ -363,8 +366,8 @@ app.get('/:id/files', async (c) => {
   const id = parseInt(c.req.param('id'));
   
   // Get media item to find library path
-  const media = await prisma.media.findUnique({
-    where: { id },
+  const media = await db.query.mediaItems.findFirst({
+    where: (mediaItems, { eq }) => eq(mediaItems.id, id),
   });
   
   if (!media || !media.libraryPath) {
@@ -464,8 +467,8 @@ app.patch('/:id/monitored', async (c) => {
     return c.json({ error: 'monitored must be a boolean' }, 400);
   }
   
-  const media = await prisma.media.findUnique({
-    where: { id },
+  const media = await db.query.mediaItems.findFirst({
+    where: eq(mediaItems.id, id),
   });
   
   if (!media) {
@@ -473,10 +476,9 @@ app.patch('/:id/monitored', async (c) => {
   }
   
   // Update monitored status
-  await prisma.media.update({
-    where: { id },
-    data: { monitored },
-  });
+  await db.update(mediaItems)
+    .set({ monitored: monitored })
+    .where(eq(mediaItems.id, id));
   
   console.log(`📺 ${monitored ? 'Started' : 'Stopped'} monitoring: ${media.title}`);
   
@@ -501,8 +503,8 @@ app.patch('/:id/identify', async (c) => {
     return c.json({ error: 'type must be "movie" or "tv"' }, 400);
   }
   
-  const media = await prisma.media.findUnique({
-    where: { id },
+  const media = await db.query.mediaItems.findFirst({
+    where: eq(mediaItems.id, id),
   });
   
   if (!media) {
@@ -517,11 +519,11 @@ app.patch('/:id/identify', async (c) => {
     }
     
     // Check if tmdbId already exists for a different media item
-    const existingMedia = await prisma.media.findFirst({
-      where: {
-        tmdbId: tmdbId,
-        id: { not: id },
-      },
+    const existingMedia = await db.query.mediaItems.findFirst({
+      where: (mediaItems, { eq, and, not }) => and(
+        eq(mediaItems.tmdbId, tmdbId),
+        not(eq(mediaItems.id, id))
+      ),
     });
     
     if (existingMedia) {
@@ -553,6 +555,7 @@ app.patch('/:id/identify', async (c) => {
       year: type === 'movie'
         ? tmdbData.release_date ? new Date(tmdbData.release_date).getFullYear() : null
         : tmdbData.first_air_date ? new Date(tmdbData.first_air_date).getFullYear() : null,
+      releaseDate: type === 'movie' ? tmdbData.release_date : tmdbData.first_air_date,
       runtime: type === 'movie' ? tmdbData.runtime : tmdbData.episode_run_time?.[0],
       genres: tmdbData.genres?.map((g: any) => g.name).join(', '),
       posterPath: tmdbData.poster_path,
@@ -560,15 +563,15 @@ app.patch('/:id/identify', async (c) => {
       voteAverage: tmdbData.vote_average,
       voteCount: tmdbData.vote_count,
       status: tmdbData.status,
+      tagline: tmdbData.tagline,
       imdbId: tmdbData.external_ids?.imdb_id,
       numberOfSeasons: type === 'tv' ? tmdbData.number_of_seasons : null,
       numberOfEpisodes: type === 'tv' ? tmdbData.number_of_episodes : null,
     };
     
-    await prisma.media.update({
-      where: { id },
-      data: updateData,
-    });
+    await db.update(mediaItems)
+      .set(updateData)
+      .where(eq(mediaItems.id, id));
     
     console.log(`🎬 Identified media ${id} as TMDB ${type} ${tmdbId}: ${updateData.title}`);
     
@@ -595,7 +598,10 @@ app.post('/bulk/refresh-metadata', async (c) => {
       return c.json({ error: 'Invalid ids array' }, 400);
     }
 
-    const tmdb = await getTMDBService();
+    const tmdb = getTMDBService();
+    if (!tmdb) {
+      return c.json({ error: 'TMDB service not configured' }, 500);
+    }
 
     const results = {
       success: [] as number[],
@@ -604,8 +610,8 @@ app.post('/bulk/refresh-metadata', async (c) => {
 
     for (const id of ids) {
       try {
-        const media = await prisma.media.findUnique({
-          where: { id },
+        const media = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.id, id),
         });
 
         if (!media) {
@@ -624,12 +630,12 @@ app.post('/bulk/refresh-metadata', async (c) => {
           : await tmdb.getTVShowDetails(media.tmdbId);
 
         // Update database
-        await prisma.media.update({
-          where: { id },
-          data: {
+        await db.update(mediaItems)
+          .set({
             title: details.title || details.name,
             originalTitle: details.original_title || details.original_name,
             overview: details.overview,
+            releaseDate: details.release_date || details.first_air_date,
             year: details.release_date 
               ? new Date(details.release_date).getFullYear()
               : details.first_air_date
@@ -639,14 +645,16 @@ app.post('/bulk/refresh-metadata', async (c) => {
             backdropPath: details.backdrop_path,
             voteAverage: details.vote_average,
             voteCount: details.vote_count,
+            popularity: details.popularity,
             genres: JSON.stringify(details.genres),
             runtime: details.runtime,
             status: details.status,
+            tagline: details.tagline,
             numberOfSeasons: (details as any).number_of_seasons,
             numberOfEpisodes: (details as any).number_of_episodes,
-            updatedAt: new Date(),
-          },
-        });
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(mediaItems.id, id));
 
         results.success.push(id);
         console.log(`✅ Refreshed metadata for ${media.title} (${id})`);
@@ -675,7 +683,10 @@ app.post('/bulk/auto-match', async (c) => {
       return c.json({ error: 'Invalid ids array' }, 400);
     }
 
-    const tmdb = await getTMDBService();
+    const tmdb = getTMDBService();
+    if (!tmdb) {
+      return c.json({ error: 'TMDB service not configured' }, 500);
+    }
 
     const results = {
       success: [] as number[],
@@ -684,8 +695,8 @@ app.post('/bulk/auto-match', async (c) => {
 
     for (const id of ids) {
       try {
-        const media = await prisma.media.findUnique({
-          where: { id },
+        const media = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.id, id),
         });
 
         if (!media) {
@@ -702,7 +713,9 @@ app.post('/bulk/auto-match', async (c) => {
 
         console.log(`🔍 Attempting auto-match for media ${id}: "${media.title}" (${media.year || 'no year'})`);
         
+        // Media items don't have parsedTitle - we need to search by their title directly
         const isMovie = media.type === 'movie';
+        const isTv = media.type === 'tv';
         
         console.log(`   Type: ${isMovie ? 'movie' : 'TV show'}`);
         console.log(`   Title: "${media.title}"`);
@@ -712,9 +725,9 @@ app.post('/bulk/auto-match', async (c) => {
         let searchResults;
         try {
           if (isMovie) {
-            searchResults = await tmdb.searchMovies(media.title, media.year || undefined);
+            searchResults = await (await tmdb).searchMovies(media.title, media.year);
           } else {
-            searchResults = await tmdb.searchTVShows(media.title, media.year || undefined);
+            searchResults = await (await tmdb).searchTVShows(media.title, media.year);
           }
         } catch (err: any) {
           console.log(`❌ TMDB search failed: ${err.message}`);
@@ -745,9 +758,8 @@ app.post('/bulk/auto-match', async (c) => {
           console.log(`✅ Auto-matching to: "${tmdbTitle}" (${firstResult.year}) - TMDB ID: ${firstResult.id}`);
           
           // Update media with TMDB data
-          await prisma.media.update({
-            where: { id },
-            data: {
+          await db.update(mediaItems)
+            .set({
               tmdbId: firstResult.id,
               title: tmdbTitle,
               year: firstResult.year,
@@ -755,8 +767,8 @@ app.post('/bulk/auto-match', async (c) => {
               posterPath: firstResult.poster_path,
               backdropPath: firstResult.backdrop_path,
               voteAverage: firstResult.vote_average,
-            },
-          });
+            })
+            .where(eq(mediaItems.id, id));
           
           console.log(`✅ Successfully matched media ${id}`);
           results.success.push(id);
@@ -795,6 +807,12 @@ app.post('/bulk/rename', async (c) => {
     }
 
     // TODO: Implement bulk rename logic
+    // This is a complex operation that needs:
+    // 1. Parse the pattern (e.g., "{title} ({year})")
+    // 2. Rename folders based on media metadata
+    // 3. Update database paths
+    // 4. Handle file system errors gracefully
+
     return c.json({
       message: 'Bulk rename not yet implemented',
       pattern,
@@ -822,8 +840,8 @@ app.post('/bulk/delete', async (c) => {
 
     for (const id of ids) {
       try {
-        const media = await prisma.media.findUnique({
-          where: { id },
+        const media = await db.query.mediaItems.findFirst({
+          where: eq(mediaItems.id, id),
         });
 
         if (!media) {
@@ -832,14 +850,10 @@ app.post('/bulk/delete', async (c) => {
         }
 
         // Delete associated files first
-        await prisma.file.deleteMany({
-          where: { mediaItemId: id },
-        });
+        await db.delete(files).where(eq(files.mediaItemId, id));
         
         // Delete media item
-        await prisma.media.delete({
-          where: { id },
-        });
+        await db.delete(mediaItems).where(eq(mediaItems.id, id));
 
         results.success.push(id);
         console.log(`🗑️ Deleted ${media.title} (${id})`);

@@ -1,7 +1,5 @@
 import { Hono } from 'hono';
-import { db } from '../db';
-import { users } from '../db/schema';
-import { eq, count } from 'drizzle-orm';
+import { prisma } from '../db/prisma';
 import {
   hashPassword,
   verifyPassword,
@@ -30,8 +28,8 @@ router.post('/register', async (c) => {
     }
 
     // Check if username already exists
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.username, username),
+    const existingUser = await prisma.user.findUnique({
+      where: { username },
     });
 
     if (existingUser) {
@@ -39,8 +37,7 @@ router.post('/register', async (c) => {
     }
 
     // Check if this is the first user (will be admin and auto-approved)
-    const [userCountResult] = await db.select({ count: count() }).from(users);
-    const userCount = userCountResult.count;
+    const userCount = await prisma.user.count();
     const role = userCount === 0 ? 'admin' : 'user';
     const approved = userCount === 0; // First user auto-approved
 
@@ -48,12 +45,14 @@ router.post('/register', async (c) => {
     const passwordHash = await hashPassword(password);
 
     // Create user
-    const [newUser] = await db.insert(users).values({
-      username,
-      password: passwordHash,
-      role,
-      approved,
-    }).returning();
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        password: passwordHash,
+        role,
+        approved,
+      },
+    });
 
     // If user is not approved (not first user), return pending message
     if (!approved) {
@@ -104,8 +103,8 @@ router.post('/login', async (c) => {
     }
 
     // Find user
-    const user = await db.query.users.findFirst({
-      where: eq(users.username, username),
+    const user = await prisma.user.findUnique({
+      where: { username },
     });
 
     if (!user) {
@@ -158,9 +157,9 @@ router.get('/me', authenticate, async (c) => {
     }
 
     // Fetch fresh user data
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, authUser.userId),
-      columns: {
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      select: {
         id: true,
         username: true,
         role: true,

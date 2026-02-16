@@ -2,9 +2,7 @@
  * Episode Monitor - Check for new episodes of monitored TV shows
  */
 
-import { db } from '../db';
-import { mediaItems } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { prisma } from '../db/prisma';
 import { getTMDBService } from '../routes/settings';
 import { createTMDBRateLimiter } from '../lib/rate-limiter';
 
@@ -25,12 +23,11 @@ export async function checkNewEpisodes(): Promise<NewEpisode[]> {
   
   try {
     // Get all monitored TV shows
-    const monitoredShows = await db.query.mediaItems.findMany({
-      where: (mediaItems, { eq, and }) => 
-        and(
-          eq(mediaItems.type, 'tv'),
-          eq(mediaItems.monitored, 1)
-        ),
+    const monitoredShows = await prisma.media.findMany({
+      where: {
+        type: 'tv',
+        monitored: true,
+      },
     });
     
     if (monitoredShows.length === 0) {
