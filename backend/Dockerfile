@@ -14,9 +14,9 @@ LABEL org.opencontainers.image.source="https://github.com/mrpajzl/Unifarr"
 # Copy prisma schema first (needed for prisma generate during npm ci postinstall)
 COPY prisma ./prisma/
 
-# Install dependencies
+# Install dependencies (omit optional native addons that can't be cross-compiled)
 COPY package*.json ./
-RUN npm ci
+RUN npm install --ignore-scripts --omit=optional
 
 # Generate Prisma client (DATABASE_URL not needed for generate, just schema validation)
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate
