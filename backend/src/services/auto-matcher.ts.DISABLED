@@ -211,8 +211,8 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
       
       // Update library path if not set
       if (!existing.libraryPath) {
-        await db.update(mediaItems)
-          .set({ libraryPath })
+        await prisma.media.updateMany(
+          { data: { libraryPath },
           .where(eq(mediaItems.id, existing.id));
         console.log(`✅ Updated library path for existing media item: ${existing.title}`);
       }
@@ -220,7 +220,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
       console.log(`✅ Using existing media item: ${existing.title} (ID: ${mediaId})`);
     } else {
       // Create new media item with library path
-      const [inserted] = await db.insert(mediaItems).values({
+      const [inserted] = await prisma.media.create({ data: {
         type: isMovie ? 'movie' : 'tv',
         title: best.tmdbTitle,
         year: best.year,
@@ -236,20 +236,20 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
         numberOfEpisodes: 'number_of_episodes' in best ? best.number_of_episodes : undefined,
         status: best.status,
         libraryPath, // Store the show folder path (for TV) or movie folder (for movies)
-      }).returning();
+      } });
       
       mediaId = inserted.id;
       console.log(`✅ Created media item: ${best.tmdbTitle} (ID: ${mediaId}) with library path: ${libraryPath}`);
     }
     
     // Link folder to media item
-    await db.update(files)
+    await prisma.files.updateMany(
       .set({
         mediaItemId: mediaId,
         matched: 1,
         matchConfidence: best.confidence,
       })
-      .where(eq(files.id, folderId));
+       where: { id: folderId } });
     
     // If it's a TV show, match all episodes in the same show folder
     if (!isMovie) {
@@ -307,7 +307,7 @@ export async function autoMatchFolder(folderId: number): Promise<boolean> {
         
         if (relatedEpisodes.length > 0) {
           for (const episode of relatedEpisodes) {
-            await db.update(files)
+            await prisma.files.updateMany(
               .set({
                 mediaItemId: mediaId,
                 matched: 1,

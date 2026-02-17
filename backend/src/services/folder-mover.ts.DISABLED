@@ -95,12 +95,12 @@ export async function moveMediaFolder(
     }
 
     // Update media item library path
-    await db.update(mediaItems)
+    await prisma.media.updateMany(
       .set({
         libraryPath: newPath,
         updatedAt: new Date(),
       })
-      .where(eq(mediaItems.id, mediaId));
+       where: { id: mediaId } });
 
     // Update all file paths in database
     const relatedFiles = await prisma.file.findMany({
@@ -112,8 +112,8 @@ export async function moveMediaFolder(
       const relativePath = file.path.replace(oldPath, '');
       const newFilePath = join(newPath, relativePath);
 
-      await db.update(files)
-        .set({ path: newFilePath })
+      await prisma.files.updateMany(
+        { data: { path: newFilePath },
         .where(eq(files.id, file.id));
     }
 

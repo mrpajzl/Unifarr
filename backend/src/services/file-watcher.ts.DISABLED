@@ -161,12 +161,14 @@ export function startFileWatcher(config: WatcherConfig) {
 async function removeDeletedFile(path: string) {
   try {
     // Find and delete file record
-    const file = await db.query.files.findFirst({
-      where: eq(files.path, path),
+    const file = await prisma.file.findFirst({
+      where: { path },
     });
     
     if (file) {
-      await db.delete(files).where(eq(files.id, file.id));
+      await prisma.file.delete({
+        where: { id: file.id },
+      });
       console.log(`🗑️ Removed from database: ${path}`);
     }
   } catch (error) {

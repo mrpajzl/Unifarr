@@ -50,13 +50,13 @@ export class LibraryScanner {
           
           if (!mediaItem) {
             // Create new TV show entry
-            const [newItem] = await db.insert(mediaItems).values({
+            const [newItem] = await prisma.media.create({ data: {
               type: 'tv',
               title: parsed.title,
               year: parsed.year,
               libraryPath: showPath,
               monitored: false,
-            }).returning();
+            } });
             mediaItem = newItem;
             result.tvShows!++;
           }
@@ -79,7 +79,7 @@ export class LibraryScanner {
               
               if (existing) {
                 // Update existing record
-                await db.update(files)
+                await prisma.files.updateMany(
                   .set({
                     parsedTitle: parsed.title, // Use show title from folder
                     parsedYear: parsed.year,
@@ -97,7 +97,7 @@ export class LibraryScanner {
                 result.updated++;
               } else {
                 // Insert new record
-                await db.insert(files).values({
+                await prisma.files.create({ data: {
                   path: filePath,
                   filename: filePath.split('/').pop() || '',
                   size: Number(fileStats.size),
@@ -163,7 +163,7 @@ export class LibraryScanner {
           
           if (existing) {
             // Update existing record
-            await db.update(files)
+            await prisma.files.updateMany(
               .set({
                 parsedTitle: parsed.title,
                 parsedYear: parsed.year,
@@ -180,7 +180,7 @@ export class LibraryScanner {
             result.updated++;
           } else {
             // Insert new record
-            await db.insert(files).values({
+            await prisma.files.create({ data: {
               path: filePath,
               filename: filePath.split('/').pop() || '',
               size: Number(fileStats.size),

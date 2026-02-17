@@ -95,13 +95,13 @@ export class FolderScanner {
           
           if (!mediaItem) {
             // Create new movie entry
-            const [newItem] = await db.insert(mediaItems).values({
+            const [newItem] = await prisma.media.create({ data: {
               type: 'movie',
               title: parsed.title,
               year: parsed.year,
               libraryPath: folderPath,
               monitored: false,
-            }).returning();
+            } });
             mediaItem = newItem;
             result.added++;
             console.log(`✨ Created movie: ${parsed.title}`);
@@ -126,7 +126,7 @@ export class FolderScanner {
       for (const dbFile of allDbFiles) {
         if (dbFile.path.startsWith(moviesPath) && !scannedPaths.has(dbFile.path)) {
           console.log(`🗑️ Removing stale entry: ${dbFile.filename} (path no longer exists)`);
-          await db.delete(files).where(eq(files.id, dbFile.id));
+          await prisma.files.deleteMany(.where(eq(files.id, dbFile.id));
         }
       }
     } catch (error) {
@@ -173,13 +173,13 @@ export class FolderScanner {
           
           if (!mediaItem) {
             // Create new TV show entry (even if no files yet)
-            const [newItem] = await db.insert(mediaItems).values({
+            const [newItem] = await prisma.media.create({ data: {
               type: 'tv',
               title: folderParsed.title,
               year: folderParsed.year,
               libraryPath: showFolderPath,
               monitored: false,
-            }).returning();
+            } });
             mediaItem = newItem;
             result.added++;
             console.log(`✨ Created TV show: ${folderParsed.title}`);
@@ -221,7 +221,7 @@ export class FolderScanner {
               
               if (existing) {
                 // Update existing record
-                await db.update(files)
+                await prisma.files.updateMany(
                   .set({
                     filename: filename,
                     parsedTitle: title, // Always use folder name
@@ -240,7 +240,7 @@ export class FolderScanner {
                 result.updated++;
               } else {
                 // Insert new record
-                await db.insert(files).values({
+                await prisma.files.create({ data: {
                   path: videoFilePath,
                   filename: filename,
                   size: fileSize,
@@ -273,7 +273,7 @@ export class FolderScanner {
       for (const dbFile of allDbFiles) {
         if (dbFile.path.startsWith(tvPath) && !scannedPaths.has(dbFile.path)) {
           console.log(`🗑️ Removing stale entry: ${dbFile.filename} (path no longer exists)`);
-          await db.delete(files).where(eq(files.id, dbFile.id));
+          await prisma.files.deleteMany(.where(eq(files.id, dbFile.id));
         }
       }
     } catch (error) {
@@ -323,7 +323,7 @@ export class FolderScanner {
         console.log(`   🎬 Auto-matched to TMDB: "${firstResult.name}" (${firstResult.year}) ID: ${firstResult.id}`);
         
         // Update media item with TMDB data
-        await db.update(mediaItems)
+        await prisma.media.updateMany(
           .set({
             tmdbId: firstResult.id,
             title: firstResult.name,
@@ -381,7 +381,7 @@ export class FolderScanner {
         console.log(`   🎬 Auto-matched to TMDB: "${firstResult.title}" (${firstResult.year}) ID: ${firstResult.id}`);
         
         // Update media item with TMDB data
-        await db.update(mediaItems)
+        await prisma.media.updateMany(
           .set({
             tmdbId: firstResult.id,
             title: firstResult.title,

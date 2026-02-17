@@ -250,7 +250,7 @@ export async function syncDownloads() {
     
     if (existing) {
       // Update progress
-      await db.update(downloads)
+      await prisma.download.updateMany(
         .set({
           progress: torrent.progress,
           downloadSpeed: torrent.dlspeed,

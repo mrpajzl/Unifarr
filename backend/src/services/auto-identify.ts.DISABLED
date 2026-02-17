@@ -106,9 +106,9 @@ export async function autoIdentifyMedia(mediaItemId: number): Promise<boolean> {
       numberOfEpisodes: type === 'tv' ? tmdbData.number_of_episodes : null,
     };
 
-    await db.update(mediaItems)
+    await prisma.media.updateMany(
       .set(updateData)
-      .where(eq(mediaItems.id, mediaItemId));
+       where: { id: mediaItemId } });
 
     console.log(`✅ Auto-identified: ${mediaItem.title} → ${updateData.title} (TMDB ${bestMatch.id})`);
 

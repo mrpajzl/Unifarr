@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import axios from 'axios';
-import { prisma } from '../../db/prisma';
+import { db } from '../../db';
+import { downloads } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import { getSettings } from '../../routes/settings';
 
