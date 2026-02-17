@@ -11,9 +11,15 @@ LABEL org.opencontainers.image.description="Unified media management backend"
 LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.source="https://github.com/mrpajzl/Unifarr"
 
+# Copy prisma schema first (needed for prisma generate during npm ci postinstall)
+COPY prisma ./prisma/
+
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
+
+# Generate Prisma client
+RUN npx prisma generate
 
 # Copy source
 COPY . .
