@@ -489,8 +489,8 @@ export class WebTorrentClient extends EventEmitter {
     let seeders = 0;
     let leechers = 0;
     
-    if (torrent.wires && torrent.wires.length > 0) {
-      torrent.wires.forEach((wire: any) => {
+    if ((torrent as any).wires && (torrent as any).wires.length > 0) {
+      (torrent as any).wires.forEach((wire: any) => {
         // If we're interested in this peer and they're not choking us,
         // they're likely a seeder (have pieces we want)
         if (wire.amInterested && !wire.peerChoking) {

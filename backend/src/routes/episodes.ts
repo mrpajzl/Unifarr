@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { getTMDBService, getTMDBApiKey } from './settings';
 import { prisma } from '../db/prisma';
 
+
 const app = new Hono();
 
 interface Episode {
@@ -34,7 +35,7 @@ app.get('/:id/episodes', async (c) => {
     
     // Get media item
     const media = await prisma.media.findFirst({
-      where: eq(mediaItems.id, mediaId),
+      where: { id: mediaId },
     });
     
     if (!media) {
@@ -95,7 +96,7 @@ app.get('/:id/episodes/matched', async (c) => {
     
     // Get media item
     const media = await prisma.media.findFirst({
-      where: eq(mediaItems.id, mediaId),
+      where: { id: mediaId },
     });
     
     if (!media) {
@@ -108,7 +109,7 @@ app.get('/:id/episodes/matched', async (c) => {
     
     // Get all files for this media
     const mediaFiles = await prisma.file.findMany({
-      where: eq(files.mediaItemId, mediaId),
+      where: { mediaItemId: mediaId },
     });
     
     // Get TMDB episodes

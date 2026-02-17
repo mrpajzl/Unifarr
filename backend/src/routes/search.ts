@@ -23,30 +23,30 @@ app.get('/tmdb/movie', async (c) => {
     const tmdbResults = await tmdb.searchMovies(query, year ? parseInt(year) : undefined);
     
     // Search local database for existing matches
-    let localMedia = [];
+    let localMedia: any[] = [];
     try {
-      localMedia = await prisma.from(mediaItems);
+      localMedia = await prisma.media.findMany();
     } catch (error) {
       console.error('Failed to fetch local media:', error);
     }
     
     // Filter locally for matches (case-insensitive)
     const queryLower = query.toLowerCase();
-    localMedia = localMedia.filter(m => 
+    localMedia = localMedia.filter((m: any) => 
       m.title?.toLowerCase().includes(queryLower) || 
       m.originalTitle?.toLowerCase().includes(queryLower)
     );
     
     // Mark results that exist locally
-    const localTmdbIds = new Set(localMedia.map(m => m.tmdbId));
-    const results = tmdbResults.map(result => ({
+    const localTmdbIds = new Set(localMedia.map((m: any) => m.tmdbId));
+    const results = tmdbResults.map((result: any) => ({
       ...result,
       inLibrary: localTmdbIds.has(result.id),
-      localId: localMedia.find(m => m.tmdbId === result.id)?.id,
+      localId: localMedia.find((m: any) => m.tmdbId === result.id)?.id,
     }));
     
     // Sort: local matches first, then by vote average
-    results.sort((a, b) => {
+    results.sort((a: any, b: any) => {
       if (a.inLibrary && !b.inLibrary) return -1;
       if (!a.inLibrary && b.inLibrary) return 1;
       return (b.vote_average || 0) - (a.vote_average || 0);
@@ -81,30 +81,30 @@ app.get('/tmdb/tv', async (c) => {
     const tmdbResults = await tmdb.searchTVShows(query, year ? parseInt(year) : undefined);
     
     // Search local database for existing matches
-    let localMedia = [];
+    let localMedia: any[] = [];
     try {
-      localMedia = await prisma.from(mediaItems);
+      localMedia = await prisma.media.findMany();
     } catch (error) {
       console.error('Failed to fetch local media:', error);
     }
     
     // Filter locally for matches (case-insensitive)
     const queryLower = query.toLowerCase();
-    localMedia = localMedia.filter(m => 
+    localMedia = localMedia.filter((m: any) => 
       m.title?.toLowerCase().includes(queryLower) || 
       m.originalTitle?.toLowerCase().includes(queryLower)
     );
     
     // Mark results that exist locally
-    const localTmdbIds = new Set(localMedia.map(m => m.tmdbId));
-    const results = tmdbResults.map(result => ({
+    const localTmdbIds = new Set(localMedia.map((m: any) => m.tmdbId));
+    const results = tmdbResults.map((result: any) => ({
       ...result,
       inLibrary: localTmdbIds.has(result.id),
-      localId: localMedia.find(m => m.tmdbId === result.id)?.id,
+      localId: localMedia.find((m: any) => m.tmdbId === result.id)?.id,
     }));
     
     // Sort: local matches first, then by vote average
-    results.sort((a, b) => {
+    results.sort((a: any, b: any) => {
       if (a.inLibrary && !b.inLibrary) return -1;
       if (!a.inLibrary && b.inLibrary) return 1;
       return (b.vote_average || 0) - (a.vote_average || 0);
@@ -138,30 +138,30 @@ app.get('/tmdb/multi', async (c) => {
     const tmdbResults = await tmdb.searchMulti(query);
     
     // Search local database for existing matches
-    let localMedia = [];
+    let localMedia: any[] = [];
     try {
-      localMedia = await prisma.from(mediaItems);
+      localMedia = await prisma.media.findMany();
     } catch (error) {
       console.error('Failed to fetch local media:', error);
     }
     
     // Filter locally for matches (case-insensitive)
     const queryLower = query.toLowerCase();
-    localMedia = localMedia.filter(m => 
+    localMedia = localMedia.filter((m: any) => 
       m.title?.toLowerCase().includes(queryLower) || 
       m.originalTitle?.toLowerCase().includes(queryLower)
     );
     
     // Mark results that exist locally
-    const localTmdbIds = new Set(localMedia.map(m => m.tmdbId));
-    const results = tmdbResults.map(result => ({
+    const localTmdbIds = new Set(localMedia.map((m: any) => m.tmdbId));
+    const results = tmdbResults.map((result: any) => ({
       ...result,
       inLibrary: localTmdbIds.has(result.id),
-      localId: localMedia.find(m => m.tmdbId === result.id)?.id,
+      localId: localMedia.find((m: any) => m.tmdbId === result.id)?.id,
     }));
     
     // Sort: local matches first, then by vote average
-    results.sort((a, b) => {
+    results.sort((a: any, b: any) => {
       if (a.inLibrary && !b.inLibrary) return -1;
       if (!a.inLibrary && b.inLibrary) return 1;
       return (b.vote_average || 0) - (a.vote_average || 0);

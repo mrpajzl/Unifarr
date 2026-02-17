@@ -242,7 +242,7 @@ app.get('/person/:id', async (c) => {
     
     const tmdb = await getTMDBService();
     // Get person details with credits
-    const person = await tmdb['fetch'](`/person/${id}`, { append_to_response: 'movie_credits,tv_credits' });
+    const person = await tmdb['fetch'](`/person/${id}`, { append_to_response: 'movie_credits,tv_credits' }) as any;
     // Get list of TMDB IDs already in library
     const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
     const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));
@@ -287,7 +287,7 @@ app.get('/details/:mediaType/:id', async (c) => {
     
     const tmdb = await getTMDBService();
     // Get details
-    const details = await tmdb['fetch'](`/${mediaType}/${id}`, { append_to_response: 'videos,credits' });
+    const details = await tmdb['fetch'](`/${mediaType}/${id}`, { append_to_response: 'videos,credits' }) as any;
     
     const allMedia = await prisma.media.findMany({ select: { tmdbId: true } });
     const inLibraryIds = new Set(allMedia.map(m => m.tmdbId).filter((id): id is number => id !== null));

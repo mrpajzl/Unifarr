@@ -35,7 +35,7 @@ router.get('/', async (c) => {
         savePath: t.savePath,
         addedTime: t.addedTime,
       })),
-      ...httpDownloads.map(h => ({
+      ...httpDownloads.map((h: any) => ({
         id: h.id,
         type: 'http' as const,
         name: h.filename,
@@ -330,7 +330,7 @@ router.get('/stats', async (c) => {
     
     const httpDownloader = await getHTTPDownloader();
     const httpDownloads = httpDownloader.getAllDownloads();
-    const httpActive = httpDownloads.filter(d => d.status === 'downloading').length;
+    const httpActive = httpDownloads.filter((d: any) => d.status === 'downloading').length;
     
     return c.json({
       torrent: {

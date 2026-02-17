@@ -86,12 +86,12 @@ export class TrackerManager {
       if (!config) {
         // Try to get config from settings
         const settings = await getSettings();
-        if (settings.trackers?.[trackerId]) {
+        if ((settings.trackers as any)?.[trackerId]) {
           config = {
             id: trackerId,
             name: trackerId,
-            enabled: settings.trackers[trackerId].enabled,
-            credentials: settings.trackers[trackerId],
+            enabled: (settings.trackers as any)[trackerId].enabled,
+            credentials: (settings.trackers as any)[trackerId],
           };
         }
       }

@@ -118,8 +118,8 @@ export class SKTorrentTracker extends BaseTracker {
       const response = await this.client.post(
         '/torrent/login.php',
         new URLSearchParams({
-          uid: this.config.credentials.username,
-          pwd: this.config.credentials.password,
+          uid: this.config.credentials!.username!,
+          pwd: this.config.credentials!.password!,
         }).toString(),
         {
           headers: {
@@ -144,7 +144,7 @@ export class SKTorrentTracker extends BaseTracker {
       
       if (userLink.length > 0) {
         this.loggedIn = true;
-        console.log(`✅ SKTorrent: Logged in as ${this.config.credentials.username}`);
+        console.log(`✅ SKTorrent: Logged in as ${this.config.credentials!.username}`);
         return true;
       }
 

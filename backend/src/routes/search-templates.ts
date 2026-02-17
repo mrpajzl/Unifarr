@@ -90,7 +90,7 @@ router.post('/tv', async (c) => {
     const settings = await getSettings();
     
     // Check for per-show override
-    const showOverride = settings.searchTemplates?.overrides?.[tvData.tmdbId];
+    const showOverride = (settings.searchTemplates?.overrides as any)?.[tvData.tmdbId];
     const templates = showOverride || settings.searchTemplates?.tv || [
       '{Series Title} S{Season:2}E{Episode:2}',
       '{Series OriginalTitle} S{Season:2}E{Episode:2}',

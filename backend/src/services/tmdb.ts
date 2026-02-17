@@ -61,13 +61,13 @@ export class TMDBService {
     const response = await fetch(url.toString());
     
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as any;
       console.error('TMDB API error:', error);
       throw new Error(error.status_message || 'TMDB API request failed');
     }
     
-    const data = await response.json();
-    console.log('TMDB API response:', endpoint, data.results?.length || 0, 'results');
+    const data = await response.json() as T;
+    console.log('TMDB API response:', endpoint, (data as any).results?.length || 0, 'results');
     return data;
   }
   

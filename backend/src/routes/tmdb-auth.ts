@@ -14,7 +14,7 @@ app.post('/request-token', async (c) => {
     const response = await fetch(
       `https://api.themoviedb.org/3/authentication/token/new?api_key=${apiKey}`
     );
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (!data.success) {
       return c.json({ error: 'Failed to create request token' }, 500);
@@ -45,7 +45,7 @@ app.post('/create-session', async (c) => {
         body: JSON.stringify({ request_token: requestToken }),
       }
     );
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (!data.success) {
       return c.json({ error: 'Failed to create session' }, 500);
@@ -55,7 +55,7 @@ app.post('/create-session', async (c) => {
     const accountResponse = await fetch(
       `https://api.themoviedb.org/3/account?api_key=${apiKey}&session_id=${data.session_id}`
     );
-    const account = await accountResponse.json();
+    const account = await accountResponse.json() as any;
 
     return c.json({
       sessionId: data.session_id,
@@ -86,7 +86,7 @@ app.get('/account', async (c) => {
     const response = await fetch(
       `https://api.themoviedb.org/3/account?api_key=${apiKey}&session_id=${sessionId}`
     );
-    const account = await response.json();
+    const account = await response.json() as any;
 
     if (account.status_code) {
       return c.json({ error: account.status_message }, 401);
@@ -120,7 +120,7 @@ app.delete('/session', async (c) => {
         body: JSON.stringify({ session_id: sessionId }),
       }
     );
-    const data = await response.json();
+    const data = await response.json() as any;
 
     return c.json({ success: data.success });
   } catch (error) {
