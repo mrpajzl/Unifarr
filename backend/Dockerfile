@@ -34,5 +34,5 @@ RUN cp settings.production.json settings.json || true
 # Expose port
 EXPOSE 3002
 
-# Run migrations then start server
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx src/index.ts"]
+# Sync schema to DB then start server
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx tsx src/index.ts"]
