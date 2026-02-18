@@ -57,10 +57,40 @@ app.get('/:id/episodes', async (c) => {
     }
     
     const tmdb = await getTMDBService();
+
+    // Determine number of seasons — use DB value, or fetch from TMDB if missing
+    let numberOfSeasons = media.numberOfSeasons;
+    if (!numberOfSeasons) {
+      try {
+        const showDetails = await tmdb.getTVShowDetails(media.tmdbId);
+        numberOfSeasons = showDetails?.number_of_seasons || null;
+        // Persist to DB for next time
+        if (numberOfSeasons) {
+          await prisma.media.update({
+            where: { id: mediaId },
+            data: {
+              numberOfSeasons,
+              numberOfEpisodes: showDetails?.number_of_episodes || undefined,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch show details:', error);
+      }
+    }
+
+    // If TMDB can't tell us, fall back to max season found in local files
+    if (!numberOfSeasons) {
+      const filesForShow = await prisma.file.findMany({
+        where: { mediaItemId: mediaId },
+        select: { parsedSeason: true },
+      });
+      const maxSeason = filesForShow.reduce((max, f) => Math.max(max, f.parsedSeason || 0), 0);
+      numberOfSeasons = maxSeason || 1;
+    }
     
     // Fetch all seasons and episodes
     const seasons: any[] = [];
-    const numberOfSeasons = media.numberOfSeasons || 1;
     
     for (let seasonNum = 1; seasonNum <= numberOfSeasons; seasonNum++) {
       try {
@@ -119,7 +149,31 @@ app.get('/:id/episodes/matched', async (c) => {
     }
     
     const tmdb = await getTMDBService();
-    const numberOfSeasons = media.numberOfSeasons || 1;
+
+    // Determine number of seasons — use DB value, or fetch from TMDB if missing
+    let numberOfSeasons = media.numberOfSeasons;
+    if (!numberOfSeasons) {
+      try {
+        const showDetails = await tmdb.getTVShowDetails(media.tmdbId!);
+        numberOfSeasons = showDetails?.number_of_seasons || null;
+        if (numberOfSeasons) {
+          await prisma.media.update({
+            where: { id: mediaId },
+            data: {
+              numberOfSeasons,
+              numberOfEpisodes: showDetails?.number_of_episodes || undefined,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch show details:', error);
+      }
+    }
+    // Fallback: detect from existing files
+    if (!numberOfSeasons) {
+      const maxSeason = mediaFiles.reduce((max, f) => Math.max(max, f.parsedSeason || 0), 0);
+      numberOfSeasons = maxSeason || 1;
+    }
     
     const seasons: any[] = [];
     
