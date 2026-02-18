@@ -10,7 +10,8 @@ const app = new Hono();
 // Get all folders (media items)
 app.get('/', async (c) => {
   const allFiles = await prisma.file.findMany();
-  return c.json(allFiles);
+  // Convert BigInt size to Number for JSON serialization
+  return c.json(allFiles.map(f => ({ ...f, size: f.size ? Number(f.size) : null })));
 });
 
 // Get unmatched folders (TV shows grouped by series)

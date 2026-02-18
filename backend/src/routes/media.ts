@@ -491,7 +491,7 @@ app.patch('/:id/monitored', async (c) => {
 app.patch('/:id/identify', async (c) => {
   const id = parseInt(c.req.param('id'));
   const body = await c.req.json();
-  const { tmdbId, type } = body;
+  const { tmdbId, type, force } = body;
   
   if (!tmdbId || !type) {
     return c.json({ error: 'tmdbId and type are required' }, 400);
@@ -525,9 +525,19 @@ app.patch('/:id/identify', async (c) => {
     });
     
     if (existingMedia) {
-      return c.json({ 
-        error: `TMDB ID ${tmdbId} is already used by "${existingMedia.title}" (ID: ${existingMedia.id})` 
-      }, 400);
+      if (!force) {
+        return c.json({ 
+          error: `TMDB ID ${tmdbId} is already used by "${existingMedia.title}"`,
+          conflictWith: existingMedia.title,
+          conflictId: existingMedia.id,
+        }, 400);
+      }
+      // force=true: unassign tmdbId from the conflicting item
+      await prisma.media.update({
+        where: { id: existingMedia.id },
+        data: { tmdbId: null },
+      });
+      console.log(`⚠️ Force-reassigned TMDB ID ${tmdbId} from "${existingMedia.title}" to media ID ${id}`);
     }
     
     // Fetch metadata from TMDB
