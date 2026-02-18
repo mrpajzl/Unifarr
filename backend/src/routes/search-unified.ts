@@ -24,6 +24,22 @@ router.post('/', async (c) => {
     const preferredLanguages = settings.preferences?.languages || ['CZ', 'EN'];
     const minTitleScore = settings.preferences?.minTitleScore || 50; // Phase 1: title filter
 
+    // Check if any sources are configured
+    const webshareEnabled = settings.webshare?.enabled && settings.webshare?.username && settings.webshare?.password;
+    const anyTrackerEnabled = Object.values(settings.trackers || {}).some((t: any) => t?.enabled);
+
+    if (!webshareEnabled && !anyTrackerEnabled) {
+      return c.json({
+        query,
+        results: [],
+        total: 0,
+        rawTotal: 0,
+        providers: [],
+        noSourcesConfigured: true,
+        message: 'No download sources configured. Please enable at least one tracker or Webshare in Settings > Trackers.',
+      });
+    }
+
     // Search trackers and Webshare in parallel
     const [trackerResults, webshareResults] = await Promise.allSettled([
       // Trackers

@@ -26,6 +26,22 @@ router.post('/movie', async (c) => {
 
     // Get settings
     const settings = await getSettings();
+
+    // Check if any sources are configured
+    const webshareEnabled = settings.webshare?.enabled && settings.webshare?.username && settings.webshare?.password;
+    const anyTrackerEnabled = Object.values(settings.trackers || {}).some((t: any) => t?.enabled);
+    if (!webshareEnabled && !anyTrackerEnabled) {
+      return c.json({
+        movie: movieData,
+        queries: [],
+        results: [],
+        total: 0,
+        rawTotal: 0,
+        noSourcesConfigured: true,
+        message: 'No download sources configured. Please enable at least one tracker or Webshare in Settings → Trackers.',
+      });
+    }
+
     const templates = settings.searchTemplates?.movies || [
       '{Movie Title} {Release Year}',
       '{Movie OriginalTitle} {Release Year}',
@@ -88,6 +104,21 @@ router.post('/tv', async (c) => {
 
     // Get settings
     const settings = await getSettings();
+
+    // Check if any sources are configured
+    const webshareEnabled = settings.webshare?.enabled && settings.webshare?.username && settings.webshare?.password;
+    const anyTrackerEnabled = Object.values(settings.trackers || {}).some((t: any) => t?.enabled);
+    if (!webshareEnabled && !anyTrackerEnabled) {
+      return c.json({
+        tv: tvData,
+        queries: [],
+        results: [],
+        total: 0,
+        rawTotal: 0,
+        noSourcesConfigured: true,
+        message: 'No download sources configured. Please enable at least one tracker or Webshare in Settings → Trackers.',
+      });
+    }
     
     // Check for per-show override
     const showOverride = (settings.searchTemplates?.overrides as any)?.[tvData.tmdbId];

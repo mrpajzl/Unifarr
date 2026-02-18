@@ -479,6 +479,12 @@ const performSearch = async () => {
       usedOverride.value = false;
     }
     
+    // Check if no sources are configured
+    if (response.noSourcesConfigured) {
+      error.value = '⚠️ No download sources configured. Enable at least one tracker or Webshare in Settings → Trackers.';
+      return;
+    }
+
     // Map results to display format
     results.value = response.results.map((r: any) => ({
       title: r.title,
@@ -495,7 +501,9 @@ const performSearch = async () => {
     providerCount.value = response.providers?.length || new Set(results.value.map(r => r.provider)).size;
     rawTotal.value = response.rawTotal || response.total;
     
-    if (results.value.length === 0) {
+    if (response.noSourcesConfigured) {
+      error.value = '⚠️ No download sources configured. Enable at least one tracker or Webshare in Settings → Trackers.';
+    } else if (results.value.length === 0) {
       error.value = `No results found for "${searchQuery.value}"`;
     }
   } catch (err: any) {
