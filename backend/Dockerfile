@@ -11,13 +11,16 @@ LABEL org.opencontainers.image.description="Unified media management backend"
 LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.source="https://github.com/mrpajzl/Unifarr"
 
+# Build tools needed for native modules (webtorrent/node-datachannel, bcrypt, better-sqlite3)
+RUN apk add --no-cache python3 make g++ linux-headers
+
 # Copy prisma schema and config first (needed for prisma generate)
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-# Install dependencies (omit optional native addons that can't be cross-compiled)
+# Install dependencies (including native addon compilation)
 COPY package*.json ./
-RUN npm install --ignore-scripts
+RUN npm install
 
 # Generate Prisma client (connection via adapter defined in prisma.config.ts)
 RUN npx prisma generate
