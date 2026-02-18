@@ -17,7 +17,7 @@ COPY prisma.config.ts ./
 
 # Install dependencies (omit optional native addons that can't be cross-compiled)
 COPY package*.json ./
-RUN npm install --ignore-scripts --omit=optional
+RUN npm install --ignore-scripts
 
 # Generate Prisma client (connection via adapter defined in prisma.config.ts)
 RUN npx prisma generate
