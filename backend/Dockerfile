@@ -34,5 +34,5 @@ RUN cp settings.production.json settings.json || true
 # Expose port
 EXPOSE 3002
 
-# Start with tsx (simpler than compiling)
-CMD ["npx", "tsx", "src/index.ts"]
+# Run migrations then start server
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx src/index.ts"]
