@@ -31,5 +31,6 @@ export const useToast = () => {
     error: (msg: string) => add('error', msg, 6000),
     warning: (msg: string) => add('warning', msg),
     info: (msg: string) => add('info', msg),
+    showToast: (msg: string, type: ToastItem['type'] = 'info') => add(type, msg),
   };
 };
