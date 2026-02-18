@@ -45,6 +45,7 @@
       v-model:genre="genreFilter"
       v-model:year="yearFilter"
       :genres="availableGenres"
+      :active-filters="activeFilterCount"
     >
       <template #extra-filter>
         <select v-model="qualityFilter" class="input w-full">
@@ -58,6 +59,14 @@
             class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500 focus:ring-offset-0"
           />
           <span class="text-sm text-gray-300">Without TMDB ID</span>
+        </label>
+        <label class="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-750 transition-colors">
+          <input 
+            type="checkbox" 
+            v-model="showOnlyMissingFile" 
+            class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500 focus:ring-offset-0"
+          />
+          <span class="text-sm text-gray-300">Missing video file</span>
         </label>
       </template>
     </LibraryToolbar>
@@ -280,6 +289,17 @@ const genreFilter = ref('');
 const yearFilter = ref('');
 const qualityFilter = ref('');
 const showOnlyWithoutTMDB = ref(false);
+const showOnlyMissingFile = ref(false);
+
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (genreFilter.value) count++;
+  if (yearFilter.value) count++;
+  if (qualityFilter.value) count++;
+  if (showOnlyWithoutTMDB.value) count++;
+  if (showOnlyMissingFile.value) count++;
+  return count;
+});
 
 // Fetch settings to check if library is configured
 const { data: settings } = await useAsyncData('settings-movies', async () => {
@@ -367,6 +387,13 @@ const filteredMovies = computed(() => {
 
   if (showOnlyWithoutTMDB.value) {
     filtered = filtered.filter((m) => !m.tmdbId);
+  }
+
+  if (showOnlyMissingFile.value) {
+    filtered = filtered.filter((m) => {
+      const mFiles = filesByMedia.value.get(m.id);
+      return !mFiles || mFiles.length === 0;
+    });
   }
 
   const dir = sortOrder.value === 'asc' ? 1 : -1;
