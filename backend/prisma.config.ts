@@ -6,6 +6,9 @@ const connectionString =
 
 export default defineConfig({
   schema: './prisma/schema.prisma',
+  datasource: {
+    url: connectionString,
+  },
   migrate: {
     adapter: () => new PrismaPg({ connectionString }),
   },

@@ -22,8 +22,8 @@ COPY prisma.config.ts ./
 COPY package*.json ./
 RUN npm install
 
-# Generate Prisma client (DATABASE_URL needed at build time for schema validation only)
-RUN DATABASE_URL=postgresql://build:build@localhost:5432/build npx prisma generate
+# Generate Prisma client (connection via adapter defined in prisma.config.ts)
+RUN npx prisma generate
 
 # Copy source
 COPY . .
