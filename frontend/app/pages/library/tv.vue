@@ -339,11 +339,12 @@ const { data: media, pending, error, refresh } = await useAsyncData(
 const { data: allFiles } = await useAsyncData('all-files-tv', () => api.files.getAll());
 
 const filesByMedia = computed(() => {
-  const map = new Map<number, typeof allFiles.value>();
-  allFiles.value?.forEach((f) => {
-    if (f.mediaItemId) {
-      if (!map.has(f.mediaItemId)) map.set(f.mediaItemId, []);
-      map.get(f.mediaItemId)!.push(f);
+  const map = new Map<number, any[]>();
+  allFiles.value?.forEach((f: any) => {
+    const mid = f.mediaItemId;
+    if (mid != null) {
+      if (!map.has(mid)) map.set(mid, []);
+      map.get(mid)!.push(f);
     }
   });
   return map;

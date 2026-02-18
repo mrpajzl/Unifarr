@@ -516,10 +516,12 @@ app.patch('/:id/identify', async (c) => {
       return c.json({ error: 'TMDB API key not configured' }, 500);
     }
     
-    // Check if tmdbId already exists for a different media item
+    // Check if tmdbId already exists for a different media item OF THE SAME TYPE
+    // (Movies and TV shows have separate TMDB ID namespaces — ID 95 movie ≠ ID 95 TV)
     const existingMedia = await prisma.media.findFirst({
       where: {
         tmdbId: tmdbId,
+        type: type,
         id: { not: id },
       },
     });
