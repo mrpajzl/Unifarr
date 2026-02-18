@@ -142,7 +142,7 @@ app.get('/:id/episodes/matched', async (c) => {
               id: matchingFile.id,
               filename: matchingFile.filename,
               path: matchingFile.path,
-              size: matchingFile.size || 0,
+              size: matchingFile.size ? Number(matchingFile.size) : 0,
             } : undefined,
           };
         });

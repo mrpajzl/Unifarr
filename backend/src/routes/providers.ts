@@ -67,7 +67,7 @@ app.get('/search', async (c) => {
       const webshareConverted = webshareResult.files.map(file => ({
         title: file.name,
         magnetUrl: `webshare:${file.ident}`, // Special format to identify Webshare links
-        size: file.size,
+        size: Number(file.size || 0),
         seeders: file.positive,
         leechers: file.negative,
         provider: 'Webshare.cz',

@@ -187,7 +187,7 @@ async function performSearch(
         title: f.name,
         downloadUrl: `webshare:${f.ident}`,
         infoUrl: `https://webshare.cz/#/file/${f.ident}/overview`,
-        size: f.size,
+        size: Number(f.size || 0),
         seeders: 10000,
         leechers: 0,
         category: '',

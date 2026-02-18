@@ -29,7 +29,7 @@ router.get('/:mediaId/files', async (c) => {
       id: file.id,
       path: file.path,
       filename: file.path.split('/').pop(),
-      size: file.size,
+      size: Number(file.size || 0),
       season: file.parsedSeason,
       episode: file.parsedEpisode,
       parsedSeason: parsed.season || file.parsedSeason,

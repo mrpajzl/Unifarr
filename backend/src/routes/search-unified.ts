@@ -63,7 +63,7 @@ router.post('/', async (c) => {
             title: f.name,
             downloadUrl: `webshare:${f.ident}`,
             infoUrl: `https://webshare.cz/#/file/${f.ident}/overview`, // Link to Webshare file page
-            size: f.size,
+            size: Number(f.size || 0),
             seeders: 10000, // Webshare = unlimited speed, give max seeders bonus
             leechers: 0,
             category: '',
