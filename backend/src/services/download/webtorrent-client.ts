@@ -37,8 +37,15 @@ export class WebTorrentClient extends EventEmitter {
     this.torrentsDir = torrentsDir || path.join(process.cwd(), 'downloads', 'torrents');
     this.downloadsDir = downloadsDir || path.join(process.cwd(), 'downloads');
     
+    // CRITICAL: EventEmitter throws if 'error' is emitted with no listener.
+    // Add a default no-op listener so errors are always handled.
+    this.on('error', (err) => {
+      console.error('WebTorrentClient unhandled error event:', err);
+    });
+    
     this.client.on('error', (err) => {
-      console.error('WebTorrent error:', err);
+      console.error('WebTorrent internal error:', err);
+      // Emit on self — safe because we have the listener above
       this.emit('error', err);
     });
     
@@ -72,73 +79,70 @@ export class WebTorrentClient extends EventEmitter {
       let torrent: WebTorrent.Torrent;
       
       try {
+        // NOTE: callback must NOT be async — client.add() doesn't await it,
+        // so any rejected promise inside would be unhandled. Use .catch() explicitly.
         torrent = this.client.add(magnetOrFileOrBuffer, {
           path: tempDownloadPath,
-        }, async (torrent) => {
-        console.log(`✅ Torrent added: ${torrent.name}`);
-        console.log(`   InfoHash: ${torrent.infoHash}`);
-        console.log(`   Size: ${this.formatBytes(torrent.length)}`);
-        console.log(`   Files: ${torrent.files.length}`);
-        console.log(`   Download to: ${tempDownloadPath}`);
-        console.log(`   Final path: ${finalPath}`);
-        
-        this.torrents.set(torrent.infoHash, torrent);
-        
-        // Save .torrent file for persistence
-        try {
-          await this.saveTorrentFile(torrent, finalPath, category);
-        } catch (error) {
-          console.error('Failed to save .torrent file:', error);
-        }
-        
-        // Setup event listeners with error handling
-        torrent.on('download', () => {
-          try {
+        }, (torrent) => {
+          console.log(`✅ Torrent added: ${torrent.name}`);
+          console.log(`   InfoHash: ${torrent.infoHash}`);
+          console.log(`   Size: ${this.formatBytes(torrent.length)}`);
+          console.log(`   Files: ${torrent.files.length}`);
+          console.log(`   Download to: ${tempDownloadPath}`);
+          console.log(`   Final path: ${finalPath}`);
+          
+          this.torrents.set(torrent.infoHash, torrent);
+          
+          // Save .torrent file for persistence (fire-and-forget, but with explicit catch)
+          this.saveTorrentFile(torrent, finalPath, category).catch((error) => {
+            console.error('Failed to save .torrent file:', error);
+          });
+          
+          // Setup event listeners
+          torrent.on('download', () => {
             this.emit('progress', torrent.infoHash, torrent.progress);
-          } catch (error) {
-            console.error('Error in download event handler:', error);
-          }
-        });
-        
-        torrent.on('done', async () => {
-          try {
-            console.log(`✅ Download complete: ${torrent.name}`);
-            
-            // Copy files to final destination (keep original for seeding)
-            try {
-              await this.copyTorrentFiles(torrent, finalPath);
-              console.log(`📁 Copied to: ${finalPath}`);
-            } catch (error) {
-              console.error('Failed to copy files:', error);
-            }
-            
-            // Emit completion event
-            this.emit('complete', torrent.infoHash, torrent.name, finalPath, category);
-            
-            // Start monitoring seed ratio
-            this.startRatioMonitoring(torrent.infoHash);
-          } catch (error) {
-            console.error('Error in done event handler:', error);
-          }
-        });
-        
-        torrent.on('error', (err) => {
-          try {
+          });
+          
+          torrent.on('done', () => {
+            // Wrap all async work explicitly so rejections can't escape
+            (async () => {
+              console.log(`✅ Download complete: ${torrent.name}`);
+              
+              // Copy files to final destination (keep original for seeding)
+              try {
+                await this.copyTorrentFiles(torrent, finalPath);
+                console.log(`📁 Copied to: ${finalPath}`);
+              } catch (error) {
+                console.error('Failed to copy files:', error);
+              }
+              
+              // Emit completion event
+              this.emit('complete', torrent.infoHash, torrent.name, finalPath, category);
+              
+              // Start monitoring seed ratio
+              this.startRatioMonitoring(torrent.infoHash);
+            })().catch((err) => {
+              console.error('Uncaught async error in torrent done handler:', err);
+            });
+          });
+          
+          torrent.on('error', (err) => {
             console.error(`❌ Torrent error (${torrent.name}):`, err);
+            // Remove the promise-reject handler (torrent is already added, promise settled)
             this.emit('torrent-error', torrent.infoHash, err);
-          } catch (error) {
-            console.error('Error in error event handler:', error);
-          }
+          });
+          
+          resolve(torrent.infoHash);
         });
         
-        resolve(torrent.infoHash);
-      });
-      
-        // Add error handler immediately after adding torrent
-        torrent.on('error', (err) => {
-          console.error('Failed to add torrent:', err);
+        // Early error handler: fires before the ready callback if add() fails fast
+        // (e.g. duplicate torrent, invalid magnet). Removed once promise settles.
+        const earlyErrorHandler = (err: Error) => {
+          console.error('Failed to add torrent (early error):', err);
           reject(err);
-        });
+        };
+        torrent.once('error', earlyErrorHandler);
+        
       } catch (error) {
         console.error('Exception while adding torrent:', error);
         reject(error);

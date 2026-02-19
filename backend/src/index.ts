@@ -5,6 +5,28 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { setupShutdownHandlers, registerServer } from './lifecycle';
 
+// ── Global crash guards ─────────────────────────────────────────────────────
+// Prevent unhandled promise rejections and uncaught exceptions from killing
+// the process. Log them instead so individual download failures don't take
+// down the whole backend.
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️  Unhandled Promise Rejection (caught by global handler):');
+  console.error('   Promise:', promise);
+  console.error('   Reason:', reason);
+  // Do NOT exit — log and continue. If this fires too often it indicates
+  // a real bug that should be fixed in the relevant service.
+});
+
+process.on('uncaughtException', (error, origin) => {
+  console.error('⚠️  Uncaught Exception (caught by global handler):');
+  console.error('   Origin:', origin);
+  console.error('   Error:', error);
+  // For truly uncaught exceptions we still exit — the process state is unknown.
+  // Kubernetes/TrueNAS will restart us automatically.
+  process.exit(1);
+});
+// ────────────────────────────────────────────────────────────────────────────
+
 import filesRouter from './routes/files';
 import mediaRouter from './routes/media';
 import searchRouter from './routes/search';
