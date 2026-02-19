@@ -20,13 +20,23 @@ app.get('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
   const media = await prisma.media.findUnique({
     where: { id },
+    include: { files: { take: 1, orderBy: { id: 'asc' } } },
   });
   
   if (!media) {
     return c.json({ error: 'Media not found' }, 404);
   }
   
-  return c.json(media);
+  // If libraryPath is not set but we have linked files, derive it from the first file.
+  // This ensures downloads always go to the EXISTING folder, not a newly generated one.
+  let libraryPath = media.libraryPath;
+  if (!libraryPath && media.files.length > 0) {
+    const { dirname } = await import('path');
+    libraryPath = dirname(media.files[0].path);
+  }
+  
+  const { files: _files, ...mediaData } = media;
+  return c.json({ ...mediaData, libraryPath });
 });
 
 // Get episodes for a TV show (raw file list, no TMDB required)

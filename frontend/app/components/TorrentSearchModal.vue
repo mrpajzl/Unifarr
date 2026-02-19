@@ -528,44 +528,52 @@ const selectResult = async (result: TorrentResult, index: number) => {
     // Determine download type and path
     const config = useRuntimeConfig();
     let savePath = '';
-    let mediaItemPath = '';
-    
-    // Get media item details if we have mediaId
+
+    // RULE: Always use the existing library path from the media item.
+    // The backend derives it from linked files if libraryPath is not explicitly set.
+    // We NEVER generate a path from TMDB title — that would create a new folder
+    // instead of saving into the existing one (e.g. "101 Dalmatians" vs "101 Dalmatinů").
     if (props.mediaId) {
       try {
-        const mediaItem = await $fetch(`${config.public.apiBase}/api/media/${props.mediaId}`);
-        mediaItemPath = mediaItem.libraryPath || '';
+        const mediaItem = await $fetch<{ libraryPath?: string }>(
+          `${config.public.apiBase}/api/media/${props.mediaId}`
+        );
+        if (mediaItem.libraryPath) {
+          savePath = mediaItem.libraryPath;
+        }
       } catch (error) {
         console.warn('Could not fetch media item path:', error);
       }
     }
-    
-    // Build save path
-    if (mediaItemPath) {
-      // Use existing library path
-      savePath = mediaItemPath;
-    } else if (props.mediaData) {
-      // Create path from media data
-      const rootPath = props.mediaType === 'movie' 
-        ? '/Users/ondrejzraly/test_media/movies'
-        : '/Users/ondrejzraly/test_media/tvshows';
-      
-      if (props.mediaType === 'movie') {
-        // Movies: /movies/Title (Year)/
-        const year = props.mediaData.releaseYear ? ` (${props.mediaData.releaseYear})` : '';
-        const safeName = props.mediaData.title.replace(/[/\\?%*:|"<>]/g, '-');
-        savePath = `${rootPath}/${safeName}${year}`;
-      } else {
-        // TV Shows: /tvshows/Title/Season XX/
-        const safeName = props.mediaData.title.replace(/[/\\?%*:|"<>]/g, '-');
-        const season = props.mediaData.season ? String(props.mediaData.season).padStart(2, '0') : '01';
-        savePath = `${rootPath}/${safeName}/Season ${season}`;
+
+    // Fallback: no library item yet — build path from server-configured roots + media title.
+    // Fetch paths from server settings so we never hardcode local dev paths.
+    if (!savePath) {
+      let moviesRoot = '/data/media/movies';
+      let tvRoot = '/data/media/tvshows';
+      try {
+        const settings = await $fetch<{ moviesPath?: string; tvPath?: string }>(
+          `${config.public.apiBase}/api/settings`
+        );
+        if (settings.moviesPath) moviesRoot = settings.moviesPath;
+        if (settings.tvPath) tvRoot = settings.tvPath;
+      } catch {
+        // Use defaults above
       }
-    } else {
-      // Fallback to root
-      savePath = props.mediaType === 'movie' 
-        ? '/Users/ondrejzraly/test_media/movies'
-        : '/Users/ondrejzraly/test_media/tvshows';
+
+      if (props.mediaData) {
+        const rootPath = props.mediaType === 'movie' ? moviesRoot : tvRoot;
+        const safeName = props.mediaData.title.replace(/[/\\?%*:|"<>]/g, '-');
+        if (props.mediaType === 'movie') {
+          const year = props.mediaData.releaseYear ? ` (${props.mediaData.releaseYear})` : '';
+          savePath = `${rootPath}/${safeName}${year}`;
+        } else {
+          const season = props.mediaData.season ? String(props.mediaData.season).padStart(2, '0') : '01';
+          savePath = `${rootPath}/${safeName}/Season ${season}`;
+        }
+      } else {
+        savePath = props.mediaType === 'movie' ? moviesRoot : tvRoot;
+      }
     }
     
     // Check download type
