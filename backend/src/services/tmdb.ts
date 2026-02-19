@@ -126,6 +126,45 @@ export class TMDBService {
       return null;
     }
   }
+
+  /**
+   * Get movie details in both English and user's language
+   * Returns: { en: TMDBMovie, localized: TMDBMovie }
+   */
+  async getMovieDetailsMultilang(id: number): Promise<{ en: TMDBMovie; localized: TMDBMovie } | null> {
+    try {
+      // Fetch English version
+      const enUrl = `${this.baseUrl}/movie/${id}?api_key=${this.apiKey}&language=en-US`;
+      const enResponse = await fetch(enUrl);
+      if (!enResponse.ok) throw new Error('Failed to fetch English version');
+      const enMovie = await enResponse.json();
+
+      // Fetch localized version (if different from English)
+      let localizedMovie = enMovie;
+      if (this.language !== 'en-US') {
+        const localizedUrl = `${this.baseUrl}/movie/${id}?api_key=${this.apiKey}&language=${this.language}`;
+        const localizedResponse = await fetch(localizedUrl);
+        if (localizedResponse.ok) {
+          localizedMovie = await localizedResponse.json();
+        }
+      }
+
+      const processMovie = (movie: any): TMDBMovie => ({
+        ...movie,
+        year: movie.release_date ? new Date(movie.release_date).getFullYear() : undefined,
+        poster_path: movie.poster_path ?? null,
+        backdrop_path: movie.backdrop_path ?? null,
+      });
+
+      return {
+        en: processMovie(enMovie),
+        localized: processMovie(localizedMovie),
+      };
+    } catch (error) {
+      console.error('TMDB get movie details (multilang) error:', error);
+      return null;
+    }
+  }
   
   async getTVShowDetails(id: number): Promise<TMDBTVShow | null> {
     try {
@@ -136,6 +175,43 @@ export class TMDBService {
       };
     } catch (error) {
       console.error('TMDB get TV show details error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get TV show details in both English and user's language
+   * Returns: { en: TMDBTVShow, localized: TMDBTVShow }
+   */
+  async getTVShowDetailsMultilang(id: number): Promise<{ en: TMDBTVShow; localized: TMDBTVShow } | null> {
+    try {
+      // Fetch English version
+      const enUrl = `${this.baseUrl}/tv/${id}?api_key=${this.apiKey}&language=en-US`;
+      const enResponse = await fetch(enUrl);
+      if (!enResponse.ok) throw new Error('Failed to fetch English version');
+      const enShow = await enResponse.json();
+
+      // Fetch localized version (if different from English)
+      let localizedShow = enShow;
+      if (this.language !== 'en-US') {
+        const localizedUrl = `${this.baseUrl}/tv/${id}?api_key=${this.apiKey}&language=${this.language}`;
+        const localizedResponse = await fetch(localizedUrl);
+        if (localizedResponse.ok) {
+          localizedShow = await localizedResponse.json();
+        }
+      }
+
+      const processShow = (show: any): TMDBTVShow => ({
+        ...show,
+        year: show.first_air_date ? new Date(show.first_air_date).getFullYear() : undefined,
+      });
+
+      return {
+        en: processShow(enShow),
+        localized: processShow(localizedShow),
+      };
+    } catch (error) {
+      console.error('TMDB get TV show details (multilang) error:', error);
       return null;
     }
   }

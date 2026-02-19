@@ -115,61 +115,68 @@ app.post('/', async (c) => {
   
   const tmdb = await getTMDBService();
   
-  let mediaData;
+  // Fetch both English and localized versions
+  let multiData;
   if (type === 'movie') {
-    mediaData = await tmdb.getMovieDetails(tmdbId);
+    multiData = await tmdb.getMovieDetailsMultilang(tmdbId);
   } else if (type === 'tv') {
-    mediaData = await tmdb.getTVShowDetails(tmdbId);
+    multiData = await tmdb.getTVShowDetailsMultilang(tmdbId);
   } else {
     return c.json({ error: 'Invalid type. Must be movie or tv' }, 400);
   }
   
-  if (!mediaData) {
+  if (!multiData) {
     return c.json({ error: 'Failed to fetch from TMDB' }, 500);
   }
   
-  const title = 'title' in mediaData ? mediaData.title : mediaData.name;
-  const year = mediaData.year;
+  const { en: mediaDataEn, localized: mediaDataLocal } = multiData;
   
-  // Determine library path
+  // Use localized title for display, English for folder names
+  const title = 'title' in mediaDataLocal ? mediaDataLocal.title : mediaDataLocal.name;
+  const titleEn = 'title' in mediaDataEn ? mediaDataEn.title : mediaDataEn.name;
+  const year = mediaDataLocal.year;
+  
+  // Determine library path (ALWAYS use English title for folders - universal and filesystem-safe)
   let libraryPath: string | undefined;
   try {
     const settings = await getSettings();
     
     const basePath = type === 'movie' ? settings.moviesPath : settings.tvPath;
-    const folderName = year ? `${title} (${year})` : title;
+    const folderName = year ? `${titleEn} (${year})` : titleEn; // Use EN title
     libraryPath = path.join(basePath, folderName);
   } catch (error) {
     console.error('Failed to determine library path:', error);
   }
   
-  // Insert into database
+  // Insert into database (save both localized and EN versions)
   const inserted = await prisma.media.create({
     data: {
       type,
-      title,
-      originalTitle: 'original_title' in mediaData ? mediaData.original_title : ('original_name' in mediaData ? mediaData.original_name : undefined),
+      title, // Localized title
+      titleEn, // English title
+      originalTitle: 'original_title' in mediaDataLocal ? mediaDataLocal.original_title : ('original_name' in mediaDataLocal ? mediaDataLocal.original_name : undefined),
       year,
-      tmdbId: mediaData.id,
-      imdbId: 'imdb_id' in mediaData ? mediaData.imdb_id : undefined,
-      overview: mediaData.overview,
-      posterPath: mediaData.poster_path,
-      backdropPath: mediaData.backdrop_path,
-      voteAverage: mediaData.vote_average,
-      voteCount: mediaData.vote_count,
-      genres: JSON.stringify(mediaData.genres),
-      runtime: 'runtime' in mediaData ? mediaData.runtime : undefined,
-      numberOfSeasons: 'number_of_seasons' in mediaData ? mediaData.number_of_seasons : undefined,
-      numberOfEpisodes: 'number_of_episodes' in mediaData ? mediaData.number_of_episodes : undefined,
-      status: mediaData.status,
-      libraryPath, // Store the library path
+      tmdbId: mediaDataLocal.id,
+      imdbId: 'imdb_id' in mediaDataLocal ? mediaDataLocal.imdb_id : undefined,
+      overview: mediaDataLocal.overview, // Localized overview
+      overviewEn: mediaDataEn.overview, // English overview
+      posterPath: mediaDataLocal.poster_path,
+      backdropPath: mediaDataLocal.backdrop_path,
+      voteAverage: mediaDataLocal.vote_average,
+      voteCount: mediaDataLocal.vote_count,
+      genres: JSON.stringify(mediaDataLocal.genres),
+      runtime: 'runtime' in mediaDataLocal ? mediaDataLocal.runtime : undefined,
+      numberOfSeasons: 'number_of_seasons' in mediaDataLocal ? mediaDataLocal.number_of_seasons : undefined,
+      numberOfEpisodes: 'number_of_episodes' in mediaDataLocal ? mediaDataLocal.number_of_episodes : undefined,
+      status: mediaDataLocal.status,
+      libraryPath, // Store the library path (using EN title)
     },
   });
   
-  // Create folder in library
+  // Create folder in library (using English title)
   if (libraryPath) {
     try {
-      const folderName = year ? `${title} (${year})` : title;
+      const folderName = year ? `${titleEn} (${year})` : titleEn;
       
       // Create folder
       await mkdir(libraryPath, { recursive: true });
@@ -180,7 +187,7 @@ app.post('/', async (c) => {
         data: {
           path: libraryPath,
           filename: folderName,
-          parsedTitle: title,
+          parsedTitle: titleEn, // Use EN title for consistency
           parsedYear: year,
           size: BigInt(0),
           matched: true,
@@ -667,32 +674,41 @@ app.post('/bulk/refresh-metadata', async (c) => {
           continue;
         }
 
-        // Fetch fresh data from TMDB
-        const details = (media.type === 'movie'
-          ? await tmdb.getMovieDetails(media.tmdbId)
-          : await tmdb.getTVShowDetails(media.tmdbId)) as any;
+        // Fetch fresh data from TMDB (both EN and localized)
+        const multiData = (media.type === 'movie'
+          ? await tmdb.getMovieDetailsMultilang(media.tmdbId)
+          : await tmdb.getTVShowDetailsMultilang(media.tmdbId));
 
-        // Update database
+        if (!multiData) {
+          results.failed.push({ id, error: 'Failed to fetch from TMDB' });
+          continue;
+        }
+
+        const { en: detailsEn, localized: detailsLocal } = multiData;
+
+        // Update database with both versions
         await prisma.media.update({
           where: { id },
           data: {
-            title: details.title || details.name,
-            originalTitle: details.original_title || details.original_name,
-            overview: details.overview,
-            year: details.release_date 
-              ? new Date(details.release_date).getFullYear()
-              : details.first_air_date
-              ? new Date(details.first_air_date).getFullYear()
+            title: (detailsLocal as any).title || (detailsLocal as any).name,
+            titleEn: (detailsEn as any).title || (detailsEn as any).name,
+            originalTitle: (detailsLocal as any).original_title || (detailsLocal as any).original_name,
+            overview: detailsLocal.overview,
+            overviewEn: detailsEn.overview,
+            year: (detailsLocal as any).release_date 
+              ? new Date((detailsLocal as any).release_date).getFullYear()
+              : (detailsLocal as any).first_air_date
+              ? new Date((detailsLocal as any).first_air_date).getFullYear()
               : null,
-            posterPath: details.poster_path,
-            backdropPath: details.backdrop_path,
-            voteAverage: details.vote_average,
-            voteCount: details.vote_count,
-            genres: JSON.stringify(details.genres),
-            runtime: details.runtime,
-            status: details.status,
-            numberOfSeasons: (details as any).number_of_seasons,
-            numberOfEpisodes: (details as any).number_of_episodes,
+            posterPath: detailsLocal.poster_path,
+            backdropPath: detailsLocal.backdrop_path,
+            voteAverage: detailsLocal.vote_average,
+            voteCount: detailsLocal.vote_count,
+            genres: JSON.stringify(detailsLocal.genres),
+            runtime: (detailsLocal as any).runtime,
+            status: detailsLocal.status,
+            numberOfSeasons: (detailsLocal as any).number_of_seasons,
+            numberOfEpisodes: (detailsLocal as any).number_of_episodes,
             updatedAt: new Date(),
           },
         });

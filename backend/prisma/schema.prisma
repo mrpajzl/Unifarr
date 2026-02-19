@@ -26,12 +26,14 @@ model User {
 model Media {
   id                Int       @id @default(autoincrement())
   type              String
-  title             String
-  originalTitle     String?   @map("original_title")
+  title             String    // Localized title (user's preferred language)
+  titleEn           String?   @map("title_en") // English title (for folder names)
+  originalTitle     String?   @map("original_title") // TMDB original title
   year              Int?
   tmdbId            Int?      @map("tmdb_id")
   imdbId            String?   @map("imdb_id")
-  overview          String?
+  overview          String?   // Localized overview
+  overviewEn        String?   @map("overview_en") // English overview
   posterPath        String?   @map("poster_path")
   backdropPath      String?   @map("backdrop_path")
   voteAverage       Float?    @map("vote_average")
