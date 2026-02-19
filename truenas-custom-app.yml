@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: unifarr
       POSTGRES_PASSWORD: unifarr_password_change_me
     volumes:
-      - /mnt/HDDs/media/unifarr/postgres:/var/lib/postgresql/data
+      - /mnt/.ix-apps/docker/volumes/ix-unifarr_unifarr-postgres-data/_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U unifarr"]
       interval: 10s
