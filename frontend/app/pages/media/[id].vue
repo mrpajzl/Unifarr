@@ -617,7 +617,7 @@ const displayData = computed(() => {
   }
   
   // Library mode: return library data (already has TMDB merged by backend)
-  return displayData.value ? { ...displayData.value, _inLibrary: true } : null;
+  return media.value ? { ...media.value, _inLibrary: true } : null;
 });
 
 const pending = computed(() => isTMDBMode.value ? tmdbPending.value : libraryPending.value);
