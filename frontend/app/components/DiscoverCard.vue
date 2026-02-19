@@ -76,7 +76,7 @@ const { getTMDBImageUrl } = useFormatters();
 
 const getDetailsUrl = (item: TMDBSearchResult) => {
   const type = item.media_type || (item.title ? 'movie' : 'tv');
-  return `/discover/${type}/${item.id}`;
+  return `/media/tmdb?type=${type}&id=${item.id}`;
 };
 
 const getYear = (item: TMDBSearchResult) => {

@@ -399,7 +399,7 @@ const selectSuggestion = (suggestion: TMDBSearchResult) => {
 
 const getSuggestionUrl = (suggestion: TMDBSearchResult) => {
   const type = suggestion.media_type || (suggestion.title ? 'movie' : 'tv');
-  return `/discover/${type}/${suggestion.id}`;
+  return `/media/tmdb?type=${type}&id=${suggestion.id}`;
 };
 
 const getYear = (item: TMDBSearchResult) => {
@@ -427,9 +427,9 @@ const openMediaFromPerson = (item: any) => {
   showPersonModal.value = false;
   selectedPersonId.value = undefined;
   
-  // Navigate to media details page
+  // Navigate to unified media details page
   const type = item.media_type || (item.title ? 'movie' : 'tv');
-  router.push(`/discover/${type}/${item.id}`);
+  router.push(`/media/tmdb?type=${type}&id=${item.id}`);
 };
 
 // Watch category changes
