@@ -81,9 +81,9 @@
         <div class="w-48 md:w-64 flex-shrink-0 mx-auto md:mx-0">
           <div class="aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-2xl ring-1 ring-white/10">
             <img
-              v-if="media.posterPath"
-              :src="getTMDBImageUrl(media.posterPath, 'w500')"
-              :alt="media.title"
+              v-if="displayData.posterPath"
+              :src="getTMDBImageUrl(displayData.posterPath, 'w500')"
+              :alt="displayData.title"
               class="w-full h-full object-cover"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-gray-600">
@@ -95,43 +95,43 @@
         <!-- Info -->
         <div class="flex-1 min-w-0">
           <!-- Title -->
-          <h1 class="text-3xl lg:text-4xl font-bold mb-2">{{ media.title }}</h1>
+          <h1 class="text-3xl lg:text-4xl font-bold mb-2">{{ displayData.title }}</h1>
 
           <!-- Meta row -->
           <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 mb-4">
-            <span v-if="media.year" class="flex items-center gap-1">
+            <span v-if="displayData.year" class="flex items-center gap-1">
               <Icon name="mdi:calendar" class="w-4 h-4" />
-              {{ media.year }}
+              {{ displayData.year }}
             </span>
             <span class="px-2 py-0.5 rounded bg-gray-800 text-xs font-medium uppercase">
-              {{ media.type === 'movie' ? 'Movie' : 'TV Show' }}
+              {{ displayData.type === 'movie' ? 'Movie' : 'TV Show' }}
             </span>
-            <span v-if="media.runtime" class="flex items-center gap-1">
+            <span v-if="displayData.runtime" class="flex items-center gap-1">
               <Icon name="mdi:clock-outline" class="w-4 h-4" />
-              {{ Math.floor(media.runtime / 60) }}h {{ media.runtime % 60 }}m
+              {{ Math.floor(displayData.runtime / 60) }}h {{ displayData.runtime % 60 }}m
             </span>
-            <span v-if="media.numberOfSeasons" class="flex items-center gap-1">
+            <span v-if="displayData.numberOfSeasons" class="flex items-center gap-1">
               <Icon name="mdi:television" class="w-4 h-4" />
-              {{ media.numberOfSeasons }} Season{{ media.numberOfSeasons !== 1 ? 's' : '' }}
+              {{ displayData.numberOfSeasons }} Season{{ displayData.numberOfSeasons !== 1 ? 's' : '' }}
             </span>
-            <span v-if="media.numberOfEpisodes" class="flex items-center gap-1">
-              {{ media.numberOfEpisodes }} Episodes
+            <span v-if="displayData.numberOfEpisodes" class="flex items-center gap-1">
+              {{ displayData.numberOfEpisodes }} Episodes
             </span>
-            <span v-if="media.voteAverage" class="flex items-center gap-1">
+            <span v-if="displayData.voteAverage" class="flex items-center gap-1">
               <Icon name="mdi:star" class="w-4 h-4 text-yellow-400" />
-              <span class="font-medium text-white">{{ media.voteAverage.toFixed(1) }}</span>
-              <span v-if="media.voteCount" class="text-gray-500">({{ media.voteCount.toLocaleString() }})</span>
+              <span class="font-medium text-white">{{ displayData.voteAverage.toFixed(1) }}</span>
+              <span v-if="displayData.voteCount" class="text-gray-500">({{ displayData.voteCount.toLocaleString() }})</span>
             </span>
             <span
-              v-if="media.status"
+              v-if="displayData.status"
               :class="[
                 'px-2 py-0.5 text-xs rounded',
-                media.status === 'Released' || media.status === 'Returning Series' ? 'bg-green-600/20 text-green-400' :
-                media.status === 'Ended' ? 'bg-gray-600/20 text-gray-400' :
+                displayData.status === 'Released' || displayData.status === 'Returning Series' ? 'bg-green-600/20 text-green-400' :
+                displayData.status === 'Ended' ? 'bg-gray-600/20 text-gray-400' :
                 'bg-yellow-600/20 text-yellow-400'
               ]"
             >
-              {{ media.status }}
+              {{ displayData.status }}
             </span>
           </div>
 
@@ -147,14 +147,14 @@
           </div>
 
           <!-- Overview -->
-          <div v-if="media.overview" class="mb-6">
-            <p class="text-gray-300 leading-relaxed">{{ media.overview }}</p>
+          <div v-if="displayData.overview" class="mb-6">
+            <p class="text-gray-300 leading-relaxed">{{ displayData.overview }}</p>
           </div>
 
           <!-- IMDB Link -->
-          <div v-if="media.imdbId" class="mb-6">
+          <div v-if="displayData.imdbId" class="mb-6">
             <a
-              :href="`https://www.imdb.com/title/${media.imdbId}`"
+              :href="`https://www.imdb.com/title/${displayData.imdbId}`"
               target="_blank"
               class="inline-flex items-center gap-2 text-sm text-yellow-500 hover:text-yellow-400 transition-colors"
             >
@@ -165,52 +165,69 @@
 
           <!-- Actions -->
           <div class="flex flex-wrap gap-2 mb-8">
+            <!-- TMDB Mode: Add to Library -->
             <button 
-              v-if="!media.tmdbId" 
-              @click="showIdentifyModal = true" 
+              v-if="isTMDBMode"
+              @click="addToLibrary" 
+              :disabled="adding"
               class="btn btn-primary"
             >
-              <Icon name="mdi:magnify" class="w-5 h-5 mr-2" />
-              Identify on TMDB
-            </button>
-            <button 
-              v-else
-              @click="showSearchModal = true" 
-              class="btn btn-primary"
-            >
-              <Icon name="mdi:download" class="w-5 h-5 mr-2" />
-              Search Downloads
-            </button>
-            <button 
-              v-if="media?.type === 'tv'"
-              @click="showEpisodeMatcherModal = true" 
-              class="btn btn-secondary"
-            >
-              <Icon name="mdi:file-link" class="w-5 h-5 mr-2" />
-              Match Episodes
-            </button>
-            <button @click="refreshMetadata" :disabled="refreshing" class="btn btn-secondary">
-              <Icon
-                :name="refreshing ? 'mdi:loading' : 'mdi:refresh'"
-                :class="{ 'animate-spin': refreshing }"
-                class="w-5 h-5 mr-2"
+              <Icon 
+                :name="adding ? 'mdi:loading' : 'mdi:plus'"
+                :class="{ 'animate-spin': adding }"
+                class="w-5 h-5 mr-2" 
               />
-              Refresh
+              {{ adding ? 'Adding...' : 'Add to Library' }}
+            </button>
+
+            <!-- Library Mode: Full Actions -->
+            <template v-else>
+              <button 
+                v-if="!displayData.tmdbId" 
+                @click="showIdentifyModal = true" 
+                class="btn btn-primary"
+              >
+                <Icon name="mdi:magnify" class="w-5 h-5 mr-2" />
+                Identify on TMDB
+              </button>
+              <button 
+                v-else
+                @click="showSearchModal = true" 
+                class="btn btn-primary"
+              >
+                <Icon name="mdi:download" class="w-5 h-5 mr-2" />
+                Search Downloads
+              </button>
+              <button 
+                v-if="displayData.type === 'tv'"
+                @click="showEpisodeMatcherModal = true" 
+                class="btn btn-secondary"
+              >
+                <Icon name="mdi:file-link" class="w-5 h-5 mr-2" />
+                Match Episodes
+              </button>
+              <button @click="refreshMetadata" :disabled="refreshing" class="btn btn-secondary">
+                <Icon
+                  :name="refreshing ? 'mdi:loading' : 'mdi:refresh'"
+                  :class="{ 'animate-spin': refreshing }"
+                  class="w-5 h-5 mr-2"
+                />
+                Refresh
+              </button>
+              <button
+                @click="toggleMonitored"
+                :disabled="togglingMonitor"
+                :class="displayData.monitored ? 'btn btn-success' : 'btn btn-secondary'"
+              >
+                <Icon
+                  :name="togglingMonitor ? 'mdi:loading' : (displayData.monitored ? 'mdi:eye-check' : 'mdi:eye-off')"
+                  :class="{ 'animate-spin': togglingMonitor }"
+                  class="w-5 h-5 mr-2"
+                />
+              {{ displayData.monitored ? 'Monitoring' : 'Not Monitoring' }}
             </button>
             <button
-              @click="toggleMonitored"
-              :disabled="togglingMonitor"
-              :class="media.monitored ? 'btn btn-success' : 'btn btn-secondary'"
-            >
-              <Icon
-                :name="togglingMonitor ? 'mdi:loading' : (media.monitored ? 'mdi:eye-check' : 'mdi:eye-off')"
-                :class="{ 'animate-spin': togglingMonitor }"
-                class="w-5 h-5 mr-2"
-              />
-              {{ media.monitored ? 'Monitoring' : 'Not Monitoring' }}
-            </button>
-            <button
-              v-if="media.type === 'tv'"
+              v-if="displayData.type === 'tv'"
               @click="showTemplateOverride = true"
               class="btn btn-secondary"
             >
@@ -246,17 +263,17 @@
 
       <!-- Episode Manager for TV Shows -->
       <EpisodeManager 
-        v-if="media.type === 'tv'"
+        v-if="displayData.type === 'tv'"
         :media-id="mediaId"
-        :media-title="media.title"
-        :tmdb-id="media.tmdbId"
-        :original-title="media.originalTitle"
-        :release-year="media.year"
-        :imdb-id="media.imdbId"
+        :media-title="displayData.title"
+        :tmdb-id="displayData.tmdbId"
+        :original-title="displayData.originalTitle"
+        :release-year="displayData.year"
+        :imdb-id="displayData.imdbId"
       />
 
       <!-- Files Section -->
-      <div v-if="media.type === 'movie'" class="mt-8">
+      <div v-if="displayData.type === 'movie'" class="mt-8">
         <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
           <Icon name="mdi:file-multiple" class="w-5 h-5 text-gray-500" />
           Files
@@ -386,6 +403,65 @@
         </div>
       </div>
 
+      <!-- Cast (TMDB mode only) -->
+      <div v-if="cast.length" class="mt-8">
+        <h2 class="text-2xl font-bold mb-4">Cast</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div
+            v-for="person in cast.slice(0, 12)"
+            :key="person.id"
+            class="group"
+          >
+            <div class="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 mb-2">
+              <img
+                v-if="person.profile_path"
+                :src="`https://image.tmdb.org/t/p/w185${person.profile_path}`"
+                :alt="person.name"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <Icon name="mdi:account" class="w-12 h-12 text-gray-600" />
+              </div>
+            </div>
+            <p class="text-sm font-medium truncate group-hover:text-primary-400 transition-colors">
+              {{ person.name }}
+            </p>
+            <p class="text-xs text-gray-500 truncate">{{ person.character }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommendations (TMDB mode only) -->
+      <div v-if="recommendations.length" class="mt-8">
+        <h2 class="text-2xl font-bold mb-4">Similar Titles</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <NuxtLink
+            v-for="item in recommendations.slice(0, 12)"
+            :key="item.id"
+            :to="`/media/tmdb?type=${item.media_type || tmdbType}&id=${item.id}`"
+            class="group"
+          >
+            <div class="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 mb-2">
+              <img
+                v-if="item.poster_path"
+                :src="getTMDBImageUrl(item.poster_path, 'w342')"
+                :alt="item.title || item.name"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <Icon name="mdi:image-off" class="w-12 h-12 text-gray-600" />
+              </div>
+            </div>
+            <p class="text-sm font-medium truncate group-hover:text-primary-400 transition-colors">
+              {{ item.title || item.name }}
+            </p>
+            <p class="text-xs text-gray-500">
+              {{ (item.release_date || item.first_air_date || '').substring(0, 4) }}
+            </p>
+          </NuxtLink>
+        </div>
+      </div>
+
     </div>
 
     <!-- Edit Path Modal -->
@@ -410,10 +486,10 @@
 
     <!-- Template Override Modal (TV Shows only) -->
     <ShowTemplateOverrideModal
-      v-if="media && media.type === 'tv'"
+      v-if="media && displayData.type === 'tv'"
       v-model="showTemplateOverride"
-      :tmdb-id="media.tmdbId"
-      :show-title="media.title"
+      :tmdb-id="displayData.tmdbId"
+      :show-title="displayData.title"
       @saved="toast.success('Custom templates updated')"
     />
 
@@ -430,7 +506,7 @@
     <EpisodeMatcherModal
       v-if="media?.id"
       v-model="showEpisodeMatcherModal"
-      :media-id="media.id"
+      :media-id="displayData.id"
       @matched="handleEpisodesMatched"
     />
 
@@ -488,7 +564,7 @@ const { data: media, pending: libraryPending, error: libraryError, refresh } = a
   `media-${mediaId.value}`,
   () => {
     if (isTMDBMode.value || !mediaId.value) return null;
-    return api.media.getById(mediaId.value);
+    return api.displayData.getById(mediaId.value);
   },
   { watch: [mediaId] }
 );
@@ -540,7 +616,7 @@ const displayData = computed(() => {
   }
   
   // Library mode: return library data (already has TMDB merged by backend)
-  return media.value ? { ...media.value, _inLibrary: true } : null;
+  return displayData.value ? { ...displayData.value, _inLibrary: true } : null;
 });
 
 const pending = computed(() => isTMDBMode.value ? tmdbPending.value : libraryPending.value);
@@ -580,7 +656,7 @@ const recommendations = computed(() => displayData.value?._tmdb?.recommendations
 const showEditPath = ref(false);
 const libraryPath = computed(() => {
   if (isTMDBMode.value) return null;
-  return media.value?.libraryPath;
+  return displayData.value?.libraryPath;
 });
 
 const handlePathUpdated = async (newPath: string) => {
@@ -590,15 +666,47 @@ const handlePathUpdated = async (newPath: string) => {
   toast.success('Library path updated');
 };
 
-// Refresh metadata
+// Refresh metadata (library mode only)
 const refreshing = ref(false);
 const refreshMetadata = async () => {
+  if (isTMDBMode.value) return;
   refreshing.value = true;
   try {
     await refresh();
     toast.success('Metadata refreshed');
   } finally {
     refreshing.value = false;
+  }
+};
+
+// Add to library (TMDB mode only)
+const adding = ref(false);
+const addToLibrary = async () => {
+  if (!isTMDBMode.value || !tmdbId.value || !tmdbType.value) return;
+  
+  adding.value = true;
+  try {
+    const config = useRuntimeConfig();
+    const response = await $fetch(`${config.public.apiBase}/api/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tmdbId: tmdbId.value,
+        type: tmdbType.value,
+      }),
+    });
+    
+    toast.success('Added to library!');
+    
+    // Redirect to library detail page
+    if (response && (response as any).id) {
+      router.push(`/media/${(response as any).id}`);
+    }
+  } catch (err: any) {
+    console.error('Failed to add to library:', err);
+    toast.error(`Failed to add: ${err.message || 'Unknown error'}`);
+  } finally {
+    adding.value = false;
   }
 };
 
@@ -639,21 +747,21 @@ const handleEpisodesMatched = async () => {
 // Torrent search modal
 const showSearchModal = ref(false);
 const searchQuery = computed(() => {
-  if (!media.value) return '';
-  return media.value.year
-    ? `${media.value.title} ${media.value.year}`
-    : media.value.title;
+  if (!displayData.value) return '';
+  return displayData.value.year
+    ? `${displayData.value.title} ${displayData.value.year}`
+    : displayData.value.title;
 });
 
 const mediaData = computed(() => {
-  if (!media.value) return undefined;
+  if (!displayData.value) return undefined;
   
   return {
-    tmdbId: media.value.tmdbId,
-    title: media.value.title,
-    originalTitle: media.value.originalTitle,
-    releaseYear: media.value.year,
-    imdbId: media.value.imdbId,
+    tmdbId: displayData.value.tmdbId,
+    title: displayData.value.title,
+    originalTitle: displayData.value.originalTitle,
+    releaseYear: displayData.value.year,
+    imdbId: displayData.value.imdbId,
   };
 });
 
@@ -668,11 +776,11 @@ const onDownloadStarted = () => {
 // Monitor toggle
 const togglingMonitor = ref(false);
 const toggleMonitored = async () => {
-  if (!media.value) return;
+  if (!displayData.value) return;
   
   togglingMonitor.value = true;
   try {
-    const newMonitored = !media.value.monitored;
+    const newMonitored = !displayData.value.monitored;
     const config = useRuntimeConfig();
     await $fetch(`${config.public.apiBase}/api/media/${mediaId.value}/monitored`, {
       method: 'PATCH',
@@ -684,8 +792,8 @@ const toggleMonitored = async () => {
     await refresh();
     
     toast.success(newMonitored 
-      ? `Started monitoring ${media.value.title}` 
-      : `Stopped monitoring ${media.value.title}`
+      ? `Started monitoring ${displayData.value.title}` 
+      : `Stopped monitoring ${displayData.value.title}`
     );
   } catch (err: any) {
     toast.error(`Failed to toggle monitoring: ${err.message}`);
@@ -701,9 +809,9 @@ const deleting = ref(false);
 const deleteMedia = async () => {
   deleting.value = true;
   try {
-    await api.media.delete(mediaId.value);
+    await api.displayData.delete(mediaId.value);
     toast.success('Media deleted');
-    const type = media.value?.type === 'tv' ? 'tv' : 'movies';
+    const type = displayData.value?.type === 'tv' ? 'tv' : 'movies';
     router.push(`/library/${type}`);
   } catch (err: any) {
     toast.error(`Delete failed: ${err.message}`);
@@ -714,7 +822,7 @@ const deleteMedia = async () => {
 };
 
 useHead({
-  title: () => `${media.value?.title || 'Loading...'} - Unifarr`,
+  title: () => `${displayData.value?.title || 'Loading...'} - Unifarr`,
 });
 </script>
 
