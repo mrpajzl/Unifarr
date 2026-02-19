@@ -224,20 +224,21 @@
                   :class="{ 'animate-spin': togglingMonitor }"
                   class="w-5 h-5 mr-2"
                 />
-              {{ displayData.monitored ? 'Monitoring' : 'Not Monitoring' }}
-            </button>
-            <button
-              v-if="displayData.type === 'tv'"
-              @click="showTemplateOverride = true"
-              class="btn btn-secondary"
-            >
-              <Icon name="mdi:text-search" class="w-5 h-5 mr-2" />
-              Custom Templates
-            </button>
-            <button @click="deleteConfirm = true" class="btn btn-danger">
-              <Icon name="mdi:delete" class="w-5 h-5 mr-2" />
-              Delete
-            </button>
+                {{ displayData.monitored ? 'Monitoring' : 'Not Monitoring' }}
+              </button>
+              <button
+                v-if="displayData.type === 'tv'"
+                @click="showTemplateOverride = true"
+                class="btn btn-secondary"
+              >
+                <Icon name="mdi:text-search" class="w-5 h-5 mr-2" />
+                Custom Templates
+              </button>
+              <button @click="deleteConfirm = true" class="btn btn-danger">
+                <Icon name="mdi:delete" class="w-5 h-5 mr-2" />
+                Delete
+              </button>
+            </template>
           </div>
         </div>
       </div>
