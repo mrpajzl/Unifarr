@@ -13,7 +13,7 @@ const router = new Hono();
 router.post('/', async (c) => {
   try {
     const body = await c.req.json();
-    const { query, type, year, limit } = body;
+    const { query, type, year, limit, minScore } = body;
 
     if (!query) {
       return c.json({ error: 'Query is required' }, 400);
@@ -22,7 +22,8 @@ router.post('/', async (c) => {
     // Get settings for preferences
     const settings = await getSettings();
     const preferredLanguages = settings.preferences?.languages || ['CZ', 'EN'];
-    const minTitleScore = settings.preferences?.minTitleScore || 50; // Phase 1: title filter
+    // Allow override from request (for manual searches), default to settings or 50
+    const minTitleScore = minScore !== undefined ? minScore : (settings.preferences?.minTitleScore || 50);
 
     // Check if any sources are configured
     const webshareEnabled = settings.webshare?.enabled && settings.webshare?.username && settings.webshare?.password;

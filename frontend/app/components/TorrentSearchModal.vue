@@ -318,8 +318,13 @@ const providerFilter = ref<string>('all');
 
 // Watch for manual query edits
 watch(searchQuery, (newVal) => {
-  if (newVal !== props.initialQuery && searched.value === false) {
+  // Enable manual mode if user changed the query from initial value
+  if (newVal !== props.initialQuery) {
     manualQueryEdit.value = true;
+  }
+  // Reset to template mode if user restores original query
+  if (newVal === props.initialQuery) {
+    manualQueryEdit.value = false;
   }
 });
 
@@ -467,12 +472,19 @@ const performSearch = async () => {
       usedOverride.value = response.usedOverride || false;
     } else {
       // Use unified search for manual queries or when no media data
-      response = await api.trackers.searchUnified(
-        searchQuery.value, 
-        props.mediaType,
-        props.mediaData?.releaseYear,
-        50 // limit
-      );
+      // Pass minScore=0 to disable filtering for manual searches
+      const config = useRuntimeConfig();
+      response = await $fetch(`${config.public.apiBase}/api/search/unified`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: searchQuery.value,
+          type: props.mediaType,
+          year: props.mediaData?.releaseYear,
+          limit: 50,
+          minScore: 0, // Don't filter results for manual searches
+        }),
+      });
       
       // Clear template info for manual search
       usedQueries.value = [];
