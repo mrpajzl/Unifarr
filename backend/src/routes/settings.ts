@@ -136,6 +136,17 @@ async function saveSettings(newSettings: any) {
   }
 }
 
+// Get TMDB API key (public endpoint for client-side TMDB calls)
+app.get('/tmdb-key', async (c) => {
+  try {
+    const settings = await getSettings();
+    return c.text(settings.tmdbApiKey || '');
+  } catch (error) {
+    console.error('Get TMDB key error:', error);
+    return c.json({ error: 'Failed to get TMDB key' }, 500);
+  }
+});
+
 // Get all settings
 app.get('/', async (c) => {
   try {

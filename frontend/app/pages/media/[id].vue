@@ -565,7 +565,7 @@ const { data: media, pending: libraryPending, error: libraryError, refresh } = a
   `media-${mediaId.value}`,
   () => {
     if (isTMDBMode.value || !mediaId.value) return null;
-    return api.displayData.getById(mediaId.value);
+    return api.media.getById(mediaId.value);
   },
   { watch: [mediaId] }
 );
