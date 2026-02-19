@@ -15,6 +15,24 @@ services:
       timeout: 5s
       retries: 5
 
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: unifarr-qbittorrent
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Prague
+      WEBUI_PORT: "8080"
+      TORRENTING_PORT: "6881"
+    volumes:
+      - /mnt/HDDs/media/unifarr/qbittorrent-config:/config
+      - /mnt/HDDs/media:/data/media
+    ports:
+      - "6881:6881"
+      - "6881:6881/udp"
+      # WebUI NOT exposed externally (backend controls it via internal network)
+    restart: unless-stopped
+
   backend:
     image: ghcr.io/mrpajzl/unifarr/backend:main
     container_name: unifarr-backend
@@ -30,6 +48,11 @@ services:
       TV_PATH: /data/media/tvshows
       # Downloads path (where torrents/HTTP downloads go)
       DOWNLOADS_PATH: /data/downloads
+      # qBittorrent sidecar (internal — do not expose WebUI port externally)
+      QBITTORRENT_HOST: qbittorrent
+      QBITTORRENT_PORT: "8080"
+      QBITTORRENT_USERNAME: admin
+      QBITTORRENT_PASSWORD: unifarr_qbt_2024
     volumes:
       - /mnt/HDDs/media/unifarr/data:/app/data
       - /mnt/HDDs/media:/data/media
@@ -37,6 +60,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      qbittorrent:
+        condition: service_started
 
   frontend:
     image: ghcr.io/mrpajzl/unifarr/frontend:main

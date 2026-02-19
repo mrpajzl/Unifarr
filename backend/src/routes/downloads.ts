@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getWebTorrentClient } from '../services/download/webtorrent-client';
+import { getQBittorrentClient } from '../services/download/qbittorrent-client';
 import { getHTTPDownloader } from '../services/download/http-downloader';
 import { prisma } from '../db/prisma';
 
@@ -7,65 +7,50 @@ const router = new Hono();
 
 /**
  * GET /api/downloads
- * List all downloads (torrents and HTTP)
+ * List all active torrent downloads.
+ * (HTTP downloads are tracked separately and not mixed into this list.)
  */
 router.get('/', async (c) => {
   try {
-    const client = await getWebTorrentClient();
+    const client = await getQBittorrentClient();
+    // Refresh so the caller always gets live data
+    await client.refreshTorrents();
     const activeTorrents = client.getTorrents();
-    
-    // Also get active HTTP downloads
-    const httpDownloader = await getHTTPDownloader();
-    const httpDownloads = httpDownloader.getAllDownloads();
-    
-    // Combine torrent and HTTP downloads
-    const allDownloads = [
-      ...activeTorrents.map(t => ({
-        id: t.infoHash,
-        type: 'torrent' as const,
-        name: t.name,
-        status: t.state,
-        progress: t.progress,
-        downloadSpeed: t.downloadSpeed,
-        uploadSpeed: t.uploadSpeed,
-        size: t.size,
-        peers: t.peers,
-        seeders: t.seeders,
-        leechers: t.leechers,
-        savePath: t.savePath,
-        addedTime: t.addedTime,
-      })),
-      ...httpDownloads.map((h: any) => ({
-        id: h.id,
-        type: 'http' as const,
-        name: h.filename,
-        status: h.status,
-        progress: h.progress,
-        downloadSpeed: h.speed,
-        uploadSpeed: 0,
-        size: h.totalBytes,
-        peers: 0,
-        savePath: h.targetPath || '',
-        addedTime: h.startTime,
-      })),
-    ];
-    
+
+    const allDownloads = activeTorrents.map(t => ({
+      id: t.infoHash,
+      type: 'torrent' as const,
+      name: t.name,
+      status: t.state,
+      progress: t.progress,
+      downloadSpeed: t.downloadSpeed,
+      uploadSpeed: t.uploadSpeed,
+      size: t.size,
+      peers: t.peers,
+      seeders: t.seeders,
+      leechers: t.leechers,
+      savePath: t.savePath,
+      addedTime: t.addedTime,
+    }));
+
     return c.json({ downloads: allDownloads });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('List downloads error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 /**
  * GET /api/downloads/active
- * List active (downloading) torrents
+ * List active (downloading / seeding) torrents
  */
 router.get('/active', async (c) => {
   try {
-    const client = await getWebTorrentClient();
+    const client = await getQBittorrentClient();
+    await client.refreshTorrents();
     const torrents = client.getTorrents();
-    
+
     const activeDownloads = torrents
       .filter(t => t.state === 'downloading' || t.state === 'seeding')
       .map(t => ({
@@ -81,20 +66,22 @@ router.get('/active', async (c) => {
         leechers: t.leechers,
         savePath: t.savePath,
       }));
-    
+
     return c.json({ downloads: activeDownloads });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('List active downloads error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 /**
  * POST /api/downloads
- * Add a new download (torrent or direct HTTP)
- * Body: 
- *   - For torrent: { type: 'torrent', magnetUrl: string, savePath: string, category?: 'movies' | 'tvshows' }
- *   - For HTTP: { type: 'http', url: string, savePath: string, filename?: string }
+ * Add a new download (torrent or direct HTTP).
+ *
+ * Body:
+ *   Torrent: { type: 'torrent', magnetUrl: string, savePath: string, category?: 'movies' | 'tvshows' }
+ *   HTTP:    { type: 'http', url: string, savePath: string, filename?: string }
  */
 router.post('/', async (c) => {
   try {
@@ -105,52 +92,51 @@ router.post('/', async (c) => {
       return c.json({ error: 'Save path is required' }, 400);
     }
 
-    // Handle torrent download
+    // ── Torrent download ───────────────────────────────────────────────────
     if (type === 'torrent' || magnetUrl) {
       if (!magnetUrl) {
         return c.json({ error: 'Magnet URL or torrent URL is required' }, 400);
       }
 
-      const client = await getWebTorrentClient();
+      const client = await getQBittorrentClient();
       let torrentInput: string | Buffer = magnetUrl;
 
       // Check if it's a SKTorrent download URL (requires proxy)
       if (magnetUrl.startsWith('sktorrent:')) {
         const downloadUrl = magnetUrl.replace('sktorrent:', '');
-        
-        // Use tracker proxy to download .torrent file with authentication
+
         const { getTrackerManager } = await import('../services/trackers/tracker-manager');
         const manager = await getTrackerManager();
         const tracker = manager.getTracker('sktorrent');
-        
+
         if (!tracker) {
           return c.json({ error: 'SKTorrent tracker not configured' }, 400);
         }
-        
-        // Download .torrent file via tracker
+
         const SKTorrentTracker = await import('../services/trackers/sktorrent');
         const sktorrent = tracker as InstanceType<typeof SKTorrentTracker.SKTorrentTracker>;
-        
+
         try {
-          const torrentBuffer = await (sktorrent as any).downloadTorrentFile(downloadUrl);
+          const torrentBuffer = await (sktorrent as { downloadTorrentFile(url: string): Promise<Buffer> }).downloadTorrentFile(downloadUrl);
           torrentInput = torrentBuffer;
           console.log(`✅ Downloaded .torrent file from SKTorrent (${torrentBuffer.length} bytes)`);
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           console.error('Failed to download .torrent file from SKTorrent:', error);
-          return c.json({ error: `Failed to download from SKTorrent: ${error.message}` }, 500);
+          return c.json({ error: `Failed to download from SKTorrent: ${message}` }, 500);
         }
       } else if (!magnetUrl.startsWith('magnet:') && !magnetUrl.startsWith('http')) {
         return c.json({ error: 'Invalid torrent URL (must be magnet:, http://, or sktorrent:)' }, 400);
       }
-      
-      // Add torrent (WebTorrent supports magnet links, .torrent URLs, and Buffers)
+
       const infoHash = await client.addTorrent(torrentInput, savePath, category);
-      
-      // Get torrent info
-      const torrentInfo = client.getTorrent(infoHash);
-      
+
+      // Refresh and fetch the just-added torrent
+      await client.refreshTorrents();
+      const torrentInfo = await client.fetchTorrent(infoHash);
+
       if (!torrentInfo) {
-        return c.json({ error: 'Torrent added but info not available' }, 500);
+        return c.json({ error: 'Torrent added but info not yet available' }, 500);
       }
 
       return c.json({
@@ -168,7 +154,7 @@ router.post('/', async (c) => {
       });
     }
 
-    // Handle HTTP download
+    // ── HTTP download ──────────────────────────────────────────────────────
     if (type === 'http' || url) {
       if (!url || !url.startsWith('http')) {
         return c.json({ error: 'Invalid HTTP URL' }, 400);
@@ -195,40 +181,44 @@ router.post('/', async (c) => {
       });
     }
 
-    return c.json({ error: 'Invalid download type. Specify "type" as "torrent" or "http", or provide magnetUrl/url' }, 400);
-  } catch (error: any) {
+    return c.json(
+      { error: 'Invalid download type. Specify "type" as "torrent" or "http", or provide magnetUrl/url' },
+      400
+    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Add download error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 /**
  * GET /api/downloads/:hash
- * Get specific download info
+ * Get specific torrent info (always live from qBittorrent)
  */
 router.get('/:hash', async (c) => {
   try {
     const hash = c.req.param('hash');
-    
-    const client = await getWebTorrentClient();
-    const torrentInfo = client.getTorrent(hash);
-    
+
+    const client = await getQBittorrentClient();
+    const torrentInfo = await client.fetchTorrent(hash);
+
     if (!torrentInfo) {
       return c.json({ error: 'Torrent not found' }, 404);
     }
 
     return c.json({ torrent: torrentInfo });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Get download error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 /**
  * PATCH /api/downloads/:hash
- * Update download status (pause/resume)
+ * Pause or resume a torrent.
  * Body: { action: 'pause' | 'resume' }
- * Note: Pause/resume only works for torrents, not HTTP downloads
  */
 router.patch('/:hash', async (c) => {
   try {
@@ -240,46 +230,45 @@ router.patch('/:hash', async (c) => {
       return c.json({ error: 'Invalid action. Must be "pause" or "resume"' }, 400);
     }
 
-    const client = await getWebTorrentClient();
-    const torrentInfo = client.getTorrent(hash);
-    
+    const client = await getQBittorrentClient();
+
+    // Check if it's a known torrent (live lookup)
+    const torrentInfo = await client.fetchTorrent(hash);
+
     if (torrentInfo) {
-      // It's a torrent
       if (action === 'pause') {
-        client.pauseTorrent(hash);
-      } else if (action === 'resume') {
-        client.resumeTorrent(hash);
+        await client.pauseTorrent(hash);
+      } else {
+        await client.resumeTorrent(hash);
       }
 
-      // Get updated info
-      const updatedInfo = client.getTorrent(hash);
-
-      return c.json({
-        success: true,
-        torrent: updatedInfo,
-      });
-    } else {
-      // Check if it's an HTTP download
-      const httpDownloader = await getHTTPDownloader();
-      const httpDownload = httpDownloader.getDownload(hash);
-      
-      if (httpDownload) {
-        return c.json({ 
-          error: 'Pause/resume not supported for HTTP downloads. Use cancel instead.' 
-        }, 400);
-      }
-      
-      return c.json({ error: 'Download not found' }, 404);
+      // Return fresh info
+      const updatedInfo = await client.fetchTorrent(hash);
+      return c.json({ success: true, torrent: updatedInfo });
     }
-  } catch (error: any) {
+
+    // Check HTTP downloader
+    const httpDownloader = await getHTTPDownloader();
+    const httpDownload = httpDownloader.getDownload(hash);
+
+    if (httpDownload) {
+      return c.json(
+        { error: 'Pause/resume not supported for HTTP downloads. Use cancel instead.' },
+        400
+      );
+    }
+
+    return c.json({ error: 'Download not found' }, 404);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Update download error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 /**
  * DELETE /api/downloads/:hash
- * Remove download (torrent or HTTP)
+ * Remove a download (torrent or HTTP).
  * Query params: deleteFiles=true/false (default: false)
  */
 router.delete('/:hash', async (c) => {
@@ -287,51 +276,47 @@ router.delete('/:hash', async (c) => {
     const hash = c.req.param('hash');
     const deleteFiles = c.req.query('deleteFiles') === 'true';
 
-    // Check if it's a torrent or HTTP download
-    const client = await getWebTorrentClient();
-    const torrentInfo = client.getTorrent(hash);
-    
+    const client = await getQBittorrentClient();
+    const torrentInfo = await client.fetchTorrent(hash);
+
     if (torrentInfo) {
-      // It's a torrent
       await client.removeTorrent(hash, deleteFiles);
-      return c.json({
-        success: true,
-        message: 'Torrent removed',
-      });
-    } else {
-      // Try HTTP downloader
-      const httpDownloader = await getHTTPDownloader();
-      const httpDownload = httpDownloader.getDownload(hash);
-      
-      if (httpDownload) {
-        await httpDownloader.cancelDownload(hash);
-        return c.json({
-          success: true,
-          message: 'HTTP download cancelled',
-        });
-      }
-      
-      return c.json({ error: 'Download not found' }, 404);
+      return c.json({ success: true, message: 'Torrent removed' });
     }
-  } catch (error: any) {
+
+    // Try HTTP downloader
+    const httpDownloader = await getHTTPDownloader();
+    const httpDownload = httpDownloader.getDownload(hash);
+
+    if (httpDownload) {
+      await httpDownloader.cancelDownload(hash);
+      return c.json({ success: true, message: 'HTTP download cancelled' });
+    }
+
+    return c.json({ error: 'Download not found' }, 404);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Delete download error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 /**
  * GET /api/downloads/stats
- * Get download statistics
+ * Download statistics (torrent + HTTP)
  */
 router.get('/stats', async (c) => {
   try {
-    const client = await getWebTorrentClient();
+    const client = await getQBittorrentClient();
+    await client.refreshTorrents();
     const stats = client.getStats();
-    
+
     const httpDownloader = await getHTTPDownloader();
     const httpDownloads = httpDownloader.getAllDownloads();
-    const httpActive = httpDownloads.filter((d: any) => d.status === 'downloading').length;
-    
+    const httpActive = (httpDownloads as Array<{ status: string }>).filter(
+      d => d.status === 'downloading'
+    ).length;
+
     return c.json({
       torrent: {
         active: stats.activeTorrents,
@@ -344,9 +329,10 @@ router.get('/stats', async (c) => {
         total: httpDownloads.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Get stats error:', error);
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 

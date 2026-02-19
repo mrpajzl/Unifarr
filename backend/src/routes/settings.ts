@@ -12,12 +12,8 @@ const DEFAULT_SETTINGS = {
   tvPath: process.env.TV_PATH || '/data/tvshows',
   downloadsPath: process.env.DOWNLOADS_PATH || './downloads',
   torrentsPath: process.env.TORRENTS_PATH || '', // Empty means use downloadsPath/torrents
-  qbittorrent: {
-    host: process.env.QBITTORRENT_HOST || 'localhost',
-    port: parseInt(process.env.QBITTORRENT_PORT || '8080'),
-    username: process.env.QBITTORRENT_USERNAME || 'admin',
-    password: process.env.QBITTORRENT_PASSWORD || '',
-  },
+  // Note: qBittorrent connection settings are managed internally (env vars only).
+  // They are NOT user-configurable and not stored in the database.
   torrents: {
     seedRatio: 2.0,
     seedTimeHours: 168,
@@ -144,11 +140,6 @@ async function saveSettings(newSettings: any) {
 app.get('/', async (c) => {
   try {
     const allSettings = await getSettings();
-    
-    // Don't send sensitive password in plain text
-    if (allSettings.qbittorrent?.password) {
-      allSettings.qbittorrent.password = '***';
-    }
     
     return c.json(allSettings);
   } catch (error) {

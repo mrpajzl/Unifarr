@@ -53,6 +53,7 @@ import { startAutoImport } from './services/download/auto-import';
 import { startFileWatcher } from './services/file-watcher';
 import { startEpisodeMonitor } from './services/episode-monitor';
 import { getSettings } from './routes/settings';
+import { setupQBittorrent } from './services/download/qbittorrent-setup';
 
 const app = new Hono();
 
@@ -162,3 +163,6 @@ const server = serve({
 
 // Register server for graceful shutdown
 registerServer(server);
+
+// Auto-configure qBittorrent sidecar (non-fatal if it fails)
+setupQBittorrent().catch(err => console.error('qBittorrent setup failed:', err));
