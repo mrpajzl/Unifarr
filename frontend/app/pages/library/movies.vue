@@ -416,9 +416,18 @@ const filteredMovies = computed(() => {
   return filtered;
 });
 
-// Lazy loading
+// Lazy loading with URL state
 const itemsPerPage = ref(50);
-const currentPage = ref(1);
+const route = useRoute();
+const router = useRouter();
+
+// Initialize from URL query param, default to 1
+const currentPage = ref(
+  route.query.page && !isNaN(Number(route.query.page)) 
+    ? Math.max(1, Number(route.query.page))
+    : 1
+);
+
 const gridContainer = ref<HTMLElement | null>(null);
 const currentLetter = ref<string>('');
 
@@ -434,6 +443,13 @@ const hasMore = computed(() => {
 const loadMore = () => {
   currentPage.value++;
 };
+
+// Sync currentPage to URL
+watch(currentPage, (newPage) => {
+  router.replace({
+    query: { ...route.query, page: newPage > 1 ? String(newPage) : undefined }
+  });
+});
 
 // Alphabet scrolling
 const getFirstLetter = (title: string): string => {
