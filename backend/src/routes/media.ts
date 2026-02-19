@@ -516,33 +516,16 @@ app.patch('/:id/identify', async (c) => {
       return c.json({ error: 'TMDB API key not configured' }, 500);
     }
     
-    // Check if tmdbId already exists for a different media item OF THE SAME TYPE
-    // (Movies and TV shows have separate TMDB ID namespaces — ID 95 movie ≠ ID 95 TV)
+    // Check if tmdbId already exists for ANY other media item (DB has global unique on tmdb_id)
     const existingMedia = await prisma.media.findFirst({
       where: {
         tmdbId: tmdbId,
-        type: type,
         id: { not: id },
       },
+      include: { files: true },
     });
     
-    if (existingMedia) {
-      if (!force) {
-        return c.json({ 
-          error: `TMDB ID ${tmdbId} is already used by "${existingMedia.title}"`,
-          conflictWith: existingMedia.title,
-          conflictId: existingMedia.id,
-        }, 400);
-      }
-      // force=true: unassign tmdbId from the conflicting item
-      await prisma.media.update({
-        where: { id: existingMedia.id },
-        data: { tmdbId: null },
-      });
-      console.log(`⚠️ Force-reassigned TMDB ID ${tmdbId} from "${existingMedia.title}" to media ID ${id}`);
-    }
-    
-    // Fetch metadata from TMDB
+    // Fetch metadata from TMDB first (needed for both update and merge paths)
     const endpoint = type === 'movie' 
       ? `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${apiKey}&append_to_response=credits,external_ids`
       : `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${apiKey}&append_to_response=credits,external_ids`;
@@ -555,7 +538,6 @@ app.patch('/:id/identify', async (c) => {
     
     const tmdbData = await response.json() as any;
     
-    // Update media item with TMDB data
     const updateData: any = {
       tmdbId: tmdbId,
       type: type,
@@ -577,6 +559,51 @@ app.patch('/:id/identify', async (c) => {
       numberOfEpisodes: type === 'tv' ? tmdbData.number_of_episodes : null,
     };
     
+    if (existingMedia) {
+      // This TMDB ID is already in the library as another media entry.
+      // Merge strategy: move all files from the current (unidentified) entry
+      // to the existing identified entry, refresh its metadata, then delete the duplicate.
+      console.log(`🔀 TMDB ID ${tmdbId} already exists as "${existingMedia.title}" (id=${existingMedia.id}). Merging media ${id} into it.`);
+      
+      // Get files attached to the entry being identified
+      const currentFiles = await prisma.file.findMany({
+        where: { mediaItemId: id },
+      });
+      
+      // Move files and related data to the existing entry
+      await prisma.$transaction(async (tx) => {
+        if (currentFiles.length > 0) {
+          await tx.file.updateMany({
+            where: { mediaItemId: id },
+            data: { mediaItemId: existingMedia.id },
+          });
+        }
+        // Re-link downloads too
+        await tx.download.updateMany({
+          where: { mediaItemId: id },
+          data: { mediaItemId: existingMedia.id },
+        });
+        // Refresh metadata on the existing entry
+        await tx.media.update({
+          where: { id: existingMedia.id },
+          data: updateData,
+        });
+        // Delete the now-empty duplicate entry
+        await tx.media.delete({ where: { id } });
+      });
+      
+      console.log(`✅ Merged: moved ${currentFiles.length} file(s) to media ${existingMedia.id} ("${updateData.title}"), deleted duplicate media ${id}`);
+      
+      return c.json({
+        success: true,
+        message: `Successfully identified as ${updateData.title} (merged with existing library entry)`,
+        tmdbId,
+        title: updateData.title,
+        mergedIntoId: existingMedia.id,
+      });
+    }
+    
+    // No conflict — straightforward update
     await prisma.media.update({
       where: { id },
       data: updateData,
