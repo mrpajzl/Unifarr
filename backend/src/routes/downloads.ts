@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
+import { dirname } from 'path';
 import { getQBittorrentClient } from '../services/download/qbittorrent-client';
 import { getHTTPDownloader } from '../services/download/http-downloader';
 import { prisma } from '../db/prisma';
+import { getSettings } from './settings';
 
 const router = new Hono();
 
@@ -80,16 +82,56 @@ router.get('/active', async (c) => {
  * Add a new download (torrent or direct HTTP).
  *
  * Body:
- *   Torrent: { type: 'torrent', magnetUrl: string, savePath: string, category?: 'movies' | 'tvshows' }
- *   HTTP:    { type: 'http', url: string, savePath: string, filename?: string }
+ *   Torrent: { type: 'torrent', magnetUrl: string, savePath?: string, mediaId?: number, category?: 'movies' | 'tvshows' }
+ *   HTTP:    { type: 'http', url: string, savePath?: string, mediaId?: number, filename?: string }
+ *
+ *   savePath is optional when mediaId is provided — the backend resolves it from
+ *   existing library files (or falls back to the configured movies/tv root).
  */
 router.post('/', async (c) => {
   try {
     const body = await c.req.json();
-    const { type, magnetUrl, url, savePath, category, filename } = body;
+    const { type, magnetUrl, url, category, filename } = body;
+    let { savePath, mediaId } = body as { savePath?: string; mediaId?: number };
 
+    // ── Resolve save path server-side if not provided ──────────────────────
     if (!savePath) {
-      return c.json({ error: 'Save path is required' }, 400);
+      if (mediaId) {
+        // Look up existing library path from the media item's files
+        const media = await prisma.media.findUnique({
+          where: { id: Number(mediaId) },
+          include: { files: { take: 1, orderBy: { id: 'asc' } } },
+        });
+
+        if (media) {
+          // Prefer explicitly stored path, then derive from first file
+          savePath = media.libraryPath ?? undefined;
+          if (!savePath && media.files.length > 0) {
+            savePath = dirname(media.files[0].path);
+          }
+          // Last resort: use the category root from settings
+          if (!savePath) {
+            const settings = await getSettings() as Record<string, unknown>;
+            if (media.type === 'movie') {
+              savePath = (settings.moviesPath as string) ?? process.env.MOVIES_PATH ?? '/data/movies';
+            } else {
+              savePath = (settings.tvPath as string) ?? process.env.TV_PATH ?? '/data/tvshows';
+            }
+          }
+        }
+      }
+
+      // If still no path, use category-based root from settings
+      if (!savePath) {
+        const settings = await getSettings() as Record<string, unknown>;
+        if (category === 'movies') {
+          savePath = (settings.moviesPath as string) ?? process.env.MOVIES_PATH ?? '/data/movies';
+        } else if (category === 'tvshows') {
+          savePath = (settings.tvPath as string) ?? process.env.TV_PATH ?? '/data/tvshows';
+        } else {
+          return c.json({ error: 'savePath is required when mediaId and category are not provided' }, 400);
+        }
+      }
     }
 
     // ── Torrent download ───────────────────────────────────────────────────

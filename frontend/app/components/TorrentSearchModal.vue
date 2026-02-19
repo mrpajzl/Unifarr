@@ -525,57 +525,11 @@ const selectResult = async (result: TorrentResult, index: number) => {
       throw new Error('No download link available');
     }
     
-    // Determine download type and path
+    // Save path is resolved server-side from mediaId + existing library files.
+    // We never generate a path from the TMDB title here — that would create an English
+    // folder instead of saving into the existing Czech/local folder structure.
     const config = useRuntimeConfig();
-    let savePath = '';
 
-    // RULE: Always use the existing library path from the media item.
-    // The backend derives it from linked files if libraryPath is not explicitly set.
-    // We NEVER generate a path from TMDB title — that would create a new folder
-    // instead of saving into the existing one (e.g. "101 Dalmatians" vs "101 Dalmatinů").
-    if (props.mediaId) {
-      try {
-        const mediaItem = await $fetch<{ libraryPath?: string }>(
-          `${config.public.apiBase}/api/media/${props.mediaId}`
-        );
-        if (mediaItem.libraryPath) {
-          savePath = mediaItem.libraryPath;
-        }
-      } catch (error) {
-        console.warn('Could not fetch media item path:', error);
-      }
-    }
-
-    // Fallback: no library item yet — build path from server-configured roots + media title.
-    // Fetch paths from server settings so we never hardcode local dev paths.
-    if (!savePath) {
-      let moviesRoot = '/data/media/movies';
-      let tvRoot = '/data/media/tvshows';
-      try {
-        const settings = await $fetch<{ moviesPath?: string; tvPath?: string }>(
-          `${config.public.apiBase}/api/settings`
-        );
-        if (settings.moviesPath) moviesRoot = settings.moviesPath;
-        if (settings.tvPath) tvRoot = settings.tvPath;
-      } catch {
-        // Use defaults above
-      }
-
-      if (props.mediaData) {
-        const rootPath = props.mediaType === 'movie' ? moviesRoot : tvRoot;
-        const safeName = props.mediaData.title.replace(/[/\\?%*:|"<>]/g, '-');
-        if (props.mediaType === 'movie') {
-          const year = props.mediaData.releaseYear ? ` (${props.mediaData.releaseYear})` : '';
-          savePath = `${rootPath}/${safeName}${year}`;
-        } else {
-          const season = props.mediaData.season ? String(props.mediaData.season).padStart(2, '0') : '01';
-          savePath = `${rootPath}/${safeName}/Season ${season}`;
-        }
-      } else {
-        savePath = props.mediaType === 'movie' ? moviesRoot : tvRoot;
-      }
-    }
-    
     // Check download type
     if (downloadUrl.startsWith('webshare:')) {
       // Webshare direct download
@@ -593,14 +547,15 @@ const selectResult = async (result: TorrentResult, index: number) => {
       }
       
     } else if (downloadUrl.startsWith('magnet:') || downloadUrl.startsWith('sktorrent:')) {
-      // Torrent: magnet link or SKTorrent download
+      // Torrent: magnet link or SKTorrent download.
+      // savePath is resolved server-side from mediaId + library files.
       const response = await $fetch(`${config.public.apiBase}/api/downloads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'torrent',
           magnetUrl: downloadUrl, // Backend will handle sktorrent: prefix
-          savePath,
+          ...(props.mediaId ? { mediaId: props.mediaId } : {}),
           category: props.mediaType === 'movie' ? 'movies' : 'tvshows',
         }),
       });
