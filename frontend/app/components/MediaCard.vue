@@ -427,19 +427,37 @@ const handleIdentify = () => {
 }
 
 const handleIdentifySuccess = async (tmdbId: number, type: 'movie' | 'tv') => {
+  const mediaEvents = useMediaEvents()
+  
   try {
     const config = useRuntimeConfig()
+    
+    // Optimistic update - update UI immediately
+    const oldTmdbId = props.media.tmdbId
+    props.media.tmdbId = tmdbId
+    
+    showIdentifyModal.value = false
+    
+    // Emit local event to parent
+    emit('identified', props.media.id)
+    
+    // Send request to backend
     await $fetch(`${config.public.apiBase}/api/media/${props.media.id}/identify`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tmdbId, type }),
     })
     
-    showIdentifyModal.value = false
-    // Emit refresh event to parent
-    emit('identified', props.media.id)
+    // Broadcast global event for other components
+    mediaEvents.emit('identified', props.media.id, { tmdbId, type })
   } catch (err: any) {
     console.error('Failed to identify:', err)
+    // Rollback on error (unless 404 - media was merged/deleted)
+    if (err.statusCode !== 404) {
+      toast.error(`Failed to identify: ${err.message}`)
+    }
+    // Trigger full refresh
+    emit('identified', props.media.id)
   }
 }
 

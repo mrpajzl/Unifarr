@@ -495,6 +495,8 @@ const refreshMetadata = async () => {
 const showIdentifyModal = ref(false);
 
 const handleIdentify = async (tmdbId: number, type: 'movie' | 'tv') => {
+  const mediaEvents = useMediaEvents();
+  
   try {
     const config = useRuntimeConfig();
     await $fetch(`${config.public.apiBase}/api/media/${mediaId.value}/identify`, {
@@ -505,6 +507,10 @@ const handleIdentify = async (tmdbId: number, type: 'movie' | 'tv') => {
     
     showIdentifyModal.value = false;
     await refresh();
+    
+    // Broadcast global event
+    mediaEvents.emit('identified', Number(mediaId.value), { tmdbId, type });
+    
     toast.success('Successfully identified media');
   } catch (err: any) {
     toast.error(`Failed to identify: ${err.message}`);

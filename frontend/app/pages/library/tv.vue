@@ -263,6 +263,17 @@ const {
 // Range preview state
 const rangePreviewHoverIndex = ref<number | null>(null);
 
+// Listen to global media events for reactive updates
+const mediaEvents = useMediaEvents();
+mediaEvents.on('identified', (event) => {
+  // Auto-refresh when any media item is identified
+  refresh();
+});
+mediaEvents.on('deleted', (event) => {
+  // Auto-refresh when any media item is deleted
+  refresh();
+});
+
 // Check if index is in range preview
 const isInRangePreview = (index: number) => {
   if (!selectionMode.value || rangePreviewHoverIndex.value === null || lastSelectedIndex.value === null) {
