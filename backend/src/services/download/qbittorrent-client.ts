@@ -102,56 +102,77 @@ export class QBittorrentClient {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
+  // When qBittorrent runs with LocalHostAuth=false + AuthSubnetWhitelist=0.0.0.0/0
+  // (our sidecar config), auth is bypassed — SID cookie is optional.
+  // We still attempt login so the cookie is sent if auth IS enabled,
+  // but we don't throw when no SID is returned.
+  private noAuthMode = false;
+
   private async login(): Promise<void> {
     const body = new URLSearchParams({
       username: this.username,
       password: this.password,
     });
 
-    const res = await fetch(`${this.baseUrl}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+    } catch (err) {
+      throw new Error(`qBittorrent unreachable: ${err}`);
+    }
 
     if (!res.ok) {
       throw new Error(`qBittorrent login HTTP error: ${res.status}`);
     }
 
     const text = await res.text();
+    if (text.trim() === 'Fails.') {
+      // Wrong password but qBittorrent is alive — may still work if auth is bypassed
+      console.warn('⚠️  qBittorrent login credentials rejected — continuing in no-auth mode');
+      this.noAuthMode = true;
+      return;
+    }
+
     if (text.trim() !== 'Ok.') {
-      throw new Error(`qBittorrent login failed: ${text}`);
+      // Unknown response — treat as no-auth (bypass) and continue
+      console.warn(`⚠️  qBittorrent login unexpected response "${text}" — continuing without SID`);
+      this.noAuthMode = true;
+      return;
     }
 
-    // Extract SID cookie
+    // Extract SID cookie (may be absent when auth is bypassed for the subnet)
     const setCookie = res.headers.get('set-cookie');
-    if (!setCookie) {
-      throw new Error('qBittorrent login: no Set-Cookie header returned');
+    const match = setCookie?.match(/SID=([^;]+)/);
+    if (match) {
+      this.sid = match[1];
+      console.log('✅ qBittorrent authenticated (session cookie acquired)');
+    } else {
+      // Auth bypass active — "Ok." without SID is expected
+      this.noAuthMode = true;
+      console.log('✅ qBittorrent auth bypassed (LocalHostAuth=false mode)');
     }
-
-    const match = setCookie.match(/SID=([^;]+)/);
-    if (!match) {
-      throw new Error('qBittorrent login: SID not found in Set-Cookie');
-    }
-
-    this.sid = match[1];
-    console.log('✅ qBittorrent authenticated');
   }
 
   private cookieHeader(): Record<string, string> {
-    if (!this.sid) return {};
+    if (!this.sid || this.noAuthMode) return {};
     return { Cookie: `SID=${this.sid}` };
   }
 
   /**
-   * Perform an authenticated fetch. Re-login once on 403 or "Fails." response.
+   * Perform an authenticated fetch.
+   * - In no-auth mode (LocalHostAuth=false): sends no cookie, expects 200.
+   * - In auth mode: sends SID cookie, re-logs in once on 403.
    */
   private async authFetch(
     url: string,
     options: RequestInit = {},
     retried = false
   ): Promise<Response> {
-    if (!this.sid) {
+    if (!this.sid && !this.noAuthMode) {
       await this.login();
     }
 
@@ -163,7 +184,8 @@ export class QBittorrentClient {
       },
     });
 
-    if (res.status === 403 && !retried) {
+    // Session expired in auth mode — re-login once
+    if (res.status === 403 && !retried && !this.noAuthMode) {
       console.warn('qBittorrent session expired — re-logging in');
       this.sid = null;
       await this.login();
