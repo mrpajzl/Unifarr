@@ -430,7 +430,7 @@ const handleIdentifySuccess = async (tmdbId: number, type: 'movie' | 'tv') => {
   try {
     const config = useRuntimeConfig()
     await $fetch(`${config.public.apiBase}/api/media/${props.media.id}/identify`, {
-      method: 'POST',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tmdbId, type }),
     })
