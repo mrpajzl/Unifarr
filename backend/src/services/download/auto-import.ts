@@ -1,4 +1,4 @@
-import { getWebTorrentClient } from './webtorrent-client';
+import { getQBittorrentClient } from './qbittorrent-client';
 import { getHTTPDownloader } from './http-downloader';
 import { scanLibrary } from '../scanner';
 import { promises as fs } from 'fs';
@@ -13,8 +13,9 @@ const TVSHOWS_PATH = process.env.TVSHOWS_PATH || '/data/tvshows';
  */
 export async function checkCompletedDownloads() {
   try {
-    // Check WebTorrent downloads
-    const torrentClient = await getWebTorrentClient();
+    // Check qBittorrent downloads
+    const torrentClient = await getQBittorrentClient();
+    await torrentClient.refreshTorrents();
     const torrents = torrentClient.getTorrents();
 
     for (const torrent of torrents) {
