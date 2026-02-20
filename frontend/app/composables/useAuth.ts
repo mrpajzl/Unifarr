@@ -155,6 +155,7 @@ export const useAuth = () => {
     ready: computed(() => ready.value),
     isAuthenticated,
     isAdmin,
+    init,
     login,
     register,
     logout,
