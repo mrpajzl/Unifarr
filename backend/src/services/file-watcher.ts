@@ -10,6 +10,7 @@ interface WatcherConfig {
 
 let watcher: chokidar.FSWatcher | null = null;
 let scanTimeouts = new Map<string, NodeJS.Timeout>(); // Separate timeout per path
+let isWatcherRunning = false;
 
 /**
  * Debounced scan - wait for file operations to complete
@@ -152,6 +153,16 @@ export function startFileWatcher(config: WatcherConfig) {
     }, 30000); // Wait 30s before restart
   });
   
+  isWatcherRunning = true;
+  
+  // Register with lifecycle manager
+  const { registerService } = require('../lifecycle');
+  registerService({
+    name: 'fileWatcher',
+    isRunning: () => isWatcherRunning,
+    stop: stopFileWatcher,
+  });
+  
   console.log('✅ File watcher started');
 }
 
@@ -183,6 +194,7 @@ export function stopFileWatcher() {
   if (watcher) {
     watcher.close();
     watcher = null;
+    isWatcherRunning = false;
     console.log('⏹️ File watcher stopped');
   }
   

@@ -13,10 +13,40 @@ let isShuttingDown = false;
 let server: any = null;
 
 /**
+ * Service registry for lifecycle tracking
+ */
+interface ServiceInstance {
+  name: string;
+  isRunning: () => boolean;
+  stop?: () => Promise<void> | void;
+}
+
+const services = new Map<string, ServiceInstance>();
+
+/**
  * Register the HTTP server for graceful shutdown
  */
 export function registerServer(serverInstance: any) {
   server = serverInstance;
+}
+
+/**
+ * Register a service for lifecycle management
+ */
+export function registerService(service: ServiceInstance) {
+  services.set(service.name, service);
+  console.log(`🔌 Registered service: ${service.name}`);
+}
+
+/**
+ * Get all registered services status
+ */
+export function getServicesStatus() {
+  const status: Record<string, boolean> = {};
+  for (const [name, service] of services) {
+    status[name] = service.isRunning();
+  }
+  return status;
 }
 
 /**

@@ -155,16 +155,17 @@ app.get('/api/health', async (c) => {
   try {
     // Check database connection
     await prisma.$queryRaw`SELECT 1`;
-    const dbHealthy = true;
+    
+    // Get actual service status
+    const { getServicesStatus } = await import('./lifecycle');
+    const servicesStatus = getServicesStatus();
     
     return c.json({
       status: 'ok',
       version: VERSION,
       services: {
-        database: dbHealthy,
-        fileWatcher: true, // TODO: get actual status from service
-        episodeMonitor: true, // TODO: get actual status from service
-        autoImport: true, // TODO: get actual status from service
+        database: true,
+        ...servicesStatus,
       },
       timestamp: new Date().toISOString(),
     });
@@ -178,37 +179,53 @@ app.get('/api/health', async (c) => {
   }
 });
 
-// Start server
+// Start server (async startup with config validation)
 const port = parseInt(process.env.PORT || '3000');
 
 console.log(`🚀 Unifarr API starting on port ${port}`);
 
-// Start auto-import service
-if (process.env.AUTO_IMPORT !== 'false') {
-  startAutoImport();
-}
-
-// Start file watcher
+// Async startup sequence
 (async () => {
   try {
-    const settings = await getSettings();
-    if (settings.moviesPath || settings.tvPath) {
-      startFileWatcher({
-        moviesPath: settings.moviesPath,
-        tvShowsPath: settings.tvPath,
-      });
-    } else {
-      console.log('⚠️ File watcher disabled: No media paths configured');
+    // Validate configuration before starting services
+    const { validateConfig } = await import('./config/validator');
+    await validateConfig();
+
+    // Start auto-import service
+    if (process.env.AUTO_IMPORT !== 'false') {
+      console.log('🔄 Starting auto-import service...');
+      startAutoImport();
     }
+
+    // Start file watcher
+    try {
+      const settings = await getSettings();
+      if (settings.moviesPath || settings.tvPath) {
+        console.log('👁️  Starting file watcher...');
+        startFileWatcher({
+          moviesPath: settings.moviesPath,
+          tvShowsPath: settings.tvPath,
+        });
+      } else {
+        console.log('⚠️  File watcher disabled: No media paths configured');
+      }
+    } catch (error) {
+      console.error('❌ Failed to start file watcher:', error);
+    }
+
+    // Start episode monitor (checks for new episodes every hour)
+    if (process.env.EPISODE_MONITOR !== 'false') {
+      console.log('📺 Starting episode monitor...');
+      startEpisodeMonitor();
+    }
+
+    console.log('✅ All services started successfully');
   } catch (error) {
-    console.error('Failed to start file watcher:', error);
+    console.error('❌ Startup failed:', error);
+    console.error('   Check configuration and try again');
+    // Don't exit - server can still run, just without background services
   }
 })();
-
-// Start episode monitor (checks for new episodes every hour)
-if (process.env.EPISODE_MONITOR !== 'false') {
-  startEpisodeMonitor();
-}
 
 // Setup graceful shutdown handlers
 setupShutdownHandlers();
