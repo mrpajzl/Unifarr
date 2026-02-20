@@ -6,6 +6,11 @@ export const useApi = () => {
     // Get token from localStorage (client-side only)
     const token = typeof window !== 'undefined' ? localStorage.getItem('unifarr_token') : null;
     
+    // Debug log
+    if (typeof window !== 'undefined' && !token && !url.includes('/auth/')) {
+      console.warn('[useApi] No token found for protected endpoint:', url);
+    }
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -14,6 +19,7 @@ export const useApi = () => {
     // Add Authorization header if token exists
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+      console.log('[useApi] Token added to request:', url, token.substring(0, 20) + '...');
     }
     
     return $fetch<T>(`${apiBase}${url}`, {
