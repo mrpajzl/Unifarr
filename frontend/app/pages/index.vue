@@ -182,11 +182,11 @@ const stats = reactive({
   totalFiles: 0,
 });
 
-// Fetch all data (client-only to access localStorage token)
-const { data: media, refresh: refreshMedia } = await useAsyncData('dashboard-media', () => api.media.getAll(), { server: false });
-const { data: files } = await useAsyncData('dashboard-files', () => api.files.getAll(), { server: false });
-const { data: unmatched } = await useAsyncData('dashboard-unmatched', () => api.files.getUnmatched(), { server: false });
-const { data: downloads } = await useAsyncData('dashboard-downloads', () => api.downloads.getActive(), { server: false });
+// Fetch all data
+const { data: media, refresh: refreshMedia } = await useAsyncData('dashboard-media', () => api.media.getAll());
+const { data: files } = await useAsyncData('dashboard-files', () => api.files.getAll());
+const { data: unmatched } = await useAsyncData('dashboard-unmatched', () => api.files.getUnmatched());
+const { data: downloads } = await useAsyncData('dashboard-downloads', () => api.downloads.getActive());
 
 // Compute stats
 watch([media, files, unmatched, downloads], () => {
