@@ -410,27 +410,40 @@ model File {
 
 ---
 
-### **DB Problem #2: Redundant Data in Media Table**
+### **DB Problem #2: Multi-Language Metadata Architecture** ⚠️ **MAJOR REFACTOR NEEDED**
 **Problém:**
 ```prisma
 model Media {
-  title             String    // Localized title
+  title             String    // Localized title (CZ hardcoded)
   titleEn           String?   // English title
   originalTitle     String?   // TMDB original title
-  overview          String?   // Localized overview
+  overview          String?   // Localized overview (CZ)
   overviewEn        String?   // English overview
 }
 ```
 
-**Impact:**  
-- Duplicitní data (title, titleEn, originalTitle často stejné)
-- Zvětšená velikost DB
+**Current Issues:**  
+- ❌ **Hardcoded CZ locale** - nelze změnit jazyk per-user
+- ❌ **No multi-user support** - všichni vidí česky
+- ❌ **Duplicate columns** - titleEn + title pro každý media
+- ❌ **TMDB rate limit risk** - re-fetch při změně jazyka
 
-**Optimalizace:**  
-Pokud nepoužíváte multi-language features aktivně, můžete sloučit:
-- `title` = display title (defaultně EN pokud není CZ)
-- `originalTitle` = TMDB original (keep pro matching)
-- Odstranit `titleEn`, `overviewEn`
+**Solution:**  
+🔗 **Viz:** `docs/MULTILANG_REFACTOR_PROPOSAL.md`
+
+**Klíčové změny:**
+1. ✅ Base metadata vždy v EN (`title`, `overview`)
+2. ✅ Separate `media_translations` table (lazy cache)
+3. ✅ User preference: `preferredLanguage` column
+4. ✅ Rate limit protection (30 req/10s queue)
+5. ✅ 7-day TTL cache + auto-cleanup
+6. ✅ Pre-warming top 3 languages (EN, CS, DE)
+
+**Impact:**
+- ✅ Multi-user s vlastními jazyky
+- ✅ 90% cache hit ratio (projekce)
+- ✅ Safe pro 100+ users
+- ✅ Graceful fallback to EN
 
 ---
 
@@ -611,4 +624,300 @@ npx prisma migrate deploy
 **47 z nich jsou KRITICKÉ (cleanup + security).**  
 **Execution time estimate: 4-5 hodin pro všechny fixes.**
 
-Chceš abych začal s Fází 1 (cleanup)?
+---
+
+## 🗺️ MASTER ACTION PLAN (Combined Refactor)
+
+Když požádáš o implementaci, provedu **vše dohromady** v koordinovaných fázích:
+
+### **PHASE 1: Clean Slate (30 min) 🧹**
+**Priority:** 🔴 CRITICAL  
+**Breaking:** No  
+**Can deploy:** Yes (instant improvement)
+
+```bash
+# 1. Remove dead code
+find backend/src -name "*.backup" -o -name "*.DISABLED" | xargs rm
+rm -rf backend/src/services/torrent/
+
+# 2. Remove unused dependencies
+cd backend && npm uninstall better-sqlite3 @types/better-sqlite3
+
+# 3. Verify providers/ usage
+grep -r "services/providers" backend/src/routes/ || rm -rf backend/src/services/providers/
+
+# 4. Commit
+git add -A && git commit -m "chore: cleanup dead code (39 files) and unused deps"
+```
+
+**Deliverable:** -39 files, -2 npm packages, cleaner codebase
+
+---
+
+### **PHASE 2: Security Hardening (1h) 🔒**
+**Priority:** 🔴 CRITICAL  
+**Breaking:** No  
+**Can deploy:** Yes (secure API)
+
+**2.1. Auth Middleware**
+```typescript
+// middleware/auth.ts
+export const requireAuth = async (c, next) => {
+  const token = c.req.header('Authorization')?.replace('Bearer ', '');
+  if (!token) return c.json({ error: 'Unauthorized' }, 401);
+  
+  const user = await verifyToken(token);
+  if (!user) return c.json({ error: 'Invalid token' }, 401);
+  
+  c.set('user', user);
+  await next();
+};
+
+// Apply to routes
+app.use('/api/media/*', requireAuth);
+app.use('/api/downloads/*', requireAuth);
+app.use('/api/settings/*', requireAuth);
+app.use('/api/requests/*', requireAuth);
+```
+
+**2.2. Standardized Error Format**
+```typescript
+// lib/errors.ts
+export class ApiError extends Error {
+  constructor(
+    public message: string,
+    public code: string,
+    public status: number = 500
+  ) {
+    super(message);
+  }
+}
+
+// Global error handler
+app.onError((err, c) => {
+  if (err instanceof ApiError) {
+    return c.json({
+      error: { message: err.message, code: err.code }
+    }, err.status);
+  }
+  return c.json({
+    error: { message: err.message || 'Internal error', code: 'ERR_UNKNOWN' }
+  }, 500);
+});
+```
+
+**2.3. Health Endpoint**
+```typescript
+app.get('/api/health', async (c) => {
+  return c.json({
+    status: 'ok',
+    version: VERSION,
+    services: {
+      database: await checkDb(),
+      fileWatcher: fileWatcher?.isRunning() || false,
+      episodeMonitor: episodeMonitor?.isRunning() || false,
+      autoImport: autoImport?.isRunning() || false,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+```
+
+**Deliverable:** Secure API, health monitoring, consistent errors
+
+---
+
+### **PHASE 3: Architecture Cleanup (2h) 🏗️**
+**Priority:** 🟡 MEDIUM  
+**Breaking:** No  
+**Can deploy:** Yes (better maintainability)
+
+**3.1. Split Large Route Files**
+```
+routes/
+├── media/
+│   ├── media-crud.ts      (GET, POST, PATCH, DELETE)
+│   ├── media-metadata.ts  (TMDB sync, refresh)
+│   ├── media-files.ts     (file operations)
+│   └── index.ts           (route aggregator)
+```
+
+**3.2. Service Lifecycle Management**
+```typescript
+// lifecycle.ts improvements
+const services = new Map<string, { stop: () => Promise<void> }>();
+
+export function registerService(name: string, service: any) {
+  services.set(name, service);
+}
+
+export async function shutdownAll() {
+  for (const [name, service] of services) {
+    await service.stop();
+  }
+}
+
+// Usage:
+registerService('fileWatcher', fileWatcher);
+registerService('episodeMonitor', episodeMonitor);
+```
+
+**3.3. Config Validation on Startup**
+```typescript
+// config/validator.ts
+export async function validateConfig() {
+  const settings = await getSettings();
+  
+  const required = ['tmdbApiKey', 'moviesPath', 'tvPath'];
+  const missing = required.filter(key => !settings[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required config: ${missing.join(', ')}`);
+  }
+  
+  // Validate paths exist
+  await fs.access(settings.moviesPath);
+  await fs.access(settings.tvPath);
+}
+
+// In index.ts:
+await validateConfig();
+startAutoImport(); // Now safe
+```
+
+**Deliverable:** Cleaner code structure, validated startup
+
+---
+
+### **PHASE 4: Database Optimization (1h) 🗄️**
+**Priority:** 🟡 MEDIUM  
+**Breaking:** No  
+**Can deploy:** Yes (faster queries)
+
+**4.1. Add Missing Indexes**
+```prisma
+model File {
+  // ...
+  matched         Boolean   @default(false)
+  mediaItemId     Int?      @map("media_item_id")
+  
+  @@index([matched])
+  @@index([mediaItemId])
+  @@index([parsedSeason, parsedEpisode]) // For episode queries
+  @@map("files")
+}
+
+model Download {
+  // ...
+  status        String?
+  mediaItemId   Int?      @map("media_item_id")
+  
+  @@index([status])
+  @@index([mediaItemId])
+  @@map("downloads")
+}
+```
+
+**4.2. Add Soft Delete (Optional)**
+```prisma
+model Media {
+  // ...
+  deletedAt DateTime? @map("deleted_at")
+  
+  @@index([deletedAt])
+}
+```
+
+**Migration:**
+```bash
+cd backend
+npx prisma migrate dev --name add_indexes_and_soft_delete
+```
+
+**Deliverable:** 10x faster queries on large libraries
+
+---
+
+### **PHASE 5: Multi-Language Refactor (4-6h) 🌍**
+**Priority:** 🟡 MEDIUM (but high value)  
+**Breaking:** **YES** (DB migration required)  
+**Can deploy:** After testing
+
+**Full implementation per:** `docs/MULTILANG_REFACTOR_PROPOSAL.md`
+
+**Steps:**
+1. ✅ Create `media_translations` table
+2. ✅ Migrate existing CZ data to translations
+3. ✅ Refactor EN to base columns
+4. ✅ Build `TranslationManager` service
+5. ✅ Add TMDB rate limiter (30 req/10s)
+6. ✅ Update API routes to use translations
+7. ✅ Add user language preference
+8. ✅ Frontend: language selector
+9. ✅ Pre-warm top 3 languages
+10. ✅ Auto-cleanup cron job
+
+**Testing checklist:**
+- [ ] Existing media displays correctly
+- [ ] New media creates EN base
+- [ ] User can change language
+- [ ] Cache hit/miss works
+- [ ] Rate limiter prevents 429s
+- [ ] Fallback to EN works
+- [ ] Cleanup removes stale entries
+
+**Deliverable:** Multi-user multi-language support
+
+---
+
+### **PHASE 6: Frontend Polish (1h) ⚡**
+**Priority:** 🟢 LOW  
+**Breaking:** No  
+**Can deploy:** Yes
+
+1. ✅ Lazy-load heavy modals (`TorrentSearchModal`, `EpisodeManager`)
+2. ✅ Add language selector to user settings
+3. ✅ Use `<NuxtImg>` for TMDB posters (lazy load)
+4. ✅ Check bundle size, split large chunks
+
+---
+
+## 📊 Total Execution Plan
+
+| Phase | Time | Breaking | Priority | Deploy |
+|-------|------|----------|----------|--------|
+| 1. Clean Slate | 30 min | No | 🔴 Critical | ✅ Immediately |
+| 2. Security | 1 h | No | 🔴 Critical | ✅ Immediately |
+| 3. Architecture | 2 h | No | 🟡 Medium | ✅ Immediately |
+| 4. DB Optimize | 1 h | No | 🟡 Medium | ✅ After testing |
+| 5. Multi-Lang | 4-6 h | **Yes** | 🟡 Medium | ⚠️ After QA |
+| 6. Frontend | 1 h | No | 🟢 Low | ✅ Immediately |
+
+**Total:** ~10-12 hours  
+**Can split:** Yes (each phase is deployable)  
+**Recommended order:** 1 → 2 → 4 → 3 → 5 → 6
+
+---
+
+## 🚀 Ready to Execute
+
+Když řekneš **"začni s implementací"**, provedu:
+
+**Quick wins (dnes - 2h):**
+- Phase 1: Clean Slate
+- Phase 2: Security Hardening
+
+**This week (6h):**
+- Phase 3: Architecture Cleanup
+- Phase 4: DB Optimization
+
+**Next week (4-6h + testing):**
+- Phase 5: Multi-Language Refactor (breaking change)
+
+**Každá fáze:**
+- ✅ Git commit po dokončení
+- ✅ Spustitelné testy
+- ✅ Deploy instructions
+- ✅ Rollback plan (pro breaking changes)
+
+Dej vědět kdy mám začít! 🚀
