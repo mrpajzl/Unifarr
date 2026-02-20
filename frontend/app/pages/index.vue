@@ -182,33 +182,60 @@ const stats = reactive({
   totalFiles: 0,
 });
 
-// Fetch all data
-const { data: media, refresh: refreshMedia } = await useAsyncData('dashboard-media', () => api.media.getAll());
-const { data: files } = await useAsyncData('dashboard-files', () => api.files.getAll());
-const { data: unmatched } = await useAsyncData('dashboard-unmatched', () => api.files.getUnmatched());
-const { data: downloads } = await useAsyncData('dashboard-downloads', () => api.downloads.getActive());
+// Data refs
+const media = ref<any[]>([]);
+const files = ref<any[]>([]);
+const unmatched = ref<any[]>([]);
+const downloads = ref<{ downloads: any[] } | null>(null);
+
+// Fetch data after component is mounted (ensures localStorage is available)
+onMounted(async () => {
+  try {
+    [media.value, files.value, unmatched.value, downloads.value] = await Promise.all([
+      api.media.getAll(),
+      api.files.getAll(),
+      api.files.getUnmatched(),
+      api.downloads.getActive(),
+    ]);
+  } catch (error) {
+    console.error('Failed to fetch dashboard data:', error);
+  }
+});
+
+const refreshMedia = async () => {
+  try {
+    media.value = await api.media.getAll();
+  } catch (error) {
+    console.error('Failed to refresh media:', error);
+  }
+};
 
 // Compute stats
 watch([media, files, unmatched, downloads], () => {
-  stats.movies = media.value?.filter((m) => m.type === 'movie').length || 0;
-  stats.tv = media.value?.filter((m) => m.type === 'tv').length || 0;
-  stats.unmatched = unmatched.value?.length || 0;
+  stats.movies = media.value.filter((m) => m.type === 'movie').length;
+  stats.tv = media.value.filter((m) => m.type === 'tv').length;
+  stats.unmatched = unmatched.value.length;
   stats.downloads = downloads.value?.downloads?.length || 0;
-  stats.totalFiles = files.value?.length || 0;
+  stats.totalFiles = files.value.length;
 }, { immediate: true });
 
 // Recent media (last 8 added)
 const recentMedia = computed(() => {
-  if (!media.value) return [];
   return [...media.value]
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
     .slice(0, 8);
 });
 
-const onScanned = () => {
-  refreshMedia();
-  refreshNuxtData('dashboard-files');
-  refreshNuxtData('dashboard-unmatched');
+const onScanned = async () => {
+  try {
+    [media.value, files.value, unmatched.value] = await Promise.all([
+      api.media.getAll(),
+      api.files.getAll(),
+      api.files.getUnmatched(),
+    ]);
+  } catch (error) {
+    console.error('Failed to refresh after scan:', error);
+  }
 };
 
 useHead({ title: 'Dashboard - Unifarr' });

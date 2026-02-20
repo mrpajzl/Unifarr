@@ -139,15 +139,20 @@ export const useAuth = () => {
   const isAuthenticated = computed(() => !!user.value && !!token.value);
   const isAdmin = computed(() => user.value?.role === 'admin');
 
-  // Initialize on first use
-  if (typeof window !== 'undefined' && !user.value && !token.value) {
+  // Computed
+  const ready = ref(false);
+
+  // Initialize on first use (sync)
+  if (typeof window !== 'undefined' && !ready.value) {
     init();
+    ready.value = true;
   }
 
   return {
     user: computed(() => user.value),
     token: computed(() => token.value),
     loading: computed(() => loading.value),
+    ready: computed(() => ready.value),
     isAuthenticated,
     isAdmin,
     login,
