@@ -10,12 +10,13 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  role      String   @default("user")
-  approved  Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+  id                Int      @id @default(autoincrement())
+  username          String   @unique
+  password          String
+  role              String   @default("user")
+  approved          Boolean  @default(false)
+  preferredLanguage String   @default("en") @map("preferred_language") // ISO 639-1 (en, cs, de, ...)
+  createdAt         DateTime @default(now()) @map("created_at")
 
   mediaRequests        MediaRequest[] @relation("UserRequests")
   processedRequests    MediaRequest[] @relation("ProcessedBy")

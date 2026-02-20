@@ -54,6 +54,8 @@ import { startFileWatcher } from './services/file-watcher';
 import { startEpisodeMonitor } from './services/episode-monitor';
 import { getSettings } from './routes/settings';
 import { setupQBittorrent } from './services/download/qbittorrent-setup';
+import { requireAuth, requireRole } from './middleware/auth';
+import { prisma } from './db/prisma';
 
 const app = new Hono();
 
@@ -87,8 +89,33 @@ app.get('/api/version', (c) => {
   return c.json({ version: VERSION });
 });
 
-// Routes
+// ── Public Routes (no auth required) ───────────────────────────────────────
 app.route('/api/auth', authRouter);
+app.route('/api/discover', discoverRouter); // Browse TMDB without auth
+
+// ── Protected Routes (authentication required) ─────────────────────────────
+app.use('/api/users/*', requireAuth);
+app.use('/api/requests/*', requireAuth);
+app.use('/api/files/*', requireAuth);
+app.use('/api/media/*', requireAuth);
+app.use('/api/search/*', requireAuth);
+app.use('/api/providers/*', requireAuth);
+app.use('/api/downloads/*', requireAuth);
+app.use('/api/tmdb-auth/*', requireAuth);
+app.use('/api/filesystem/*', requireAuth);
+app.use('/api/webshare/*', requireAuth);
+app.use('/api/watcher/*', requireAuth);
+app.use('/api/trackers/*', requireAuth);
+app.use('/api/tracker-proxy/*', requireAuth);
+app.use('/api/monitor/*', requireAuth);
+app.use('/api/episode-matcher/*', requireAuth);
+app.use('/api/activities/*', requireAuth);
+
+// ── Admin-Only Routes ───────────────────────────────────────────────────────
+app.use('/api/settings/*', requireAuth, requireRole('admin'));
+app.use('/api/search/templates/*', requireAuth, requireRole('admin'));
+
+// Register routes
 app.route('/api/users', usersRouter);
 app.route('/api/requests', requestsRouter);
 app.route('/api/files', filesRouter);
@@ -99,7 +126,6 @@ app.route('/api/downloads', downloadsRouter);
 app.route('/api/tmdb-auth', tmdbAuthRouter);
 app.route('/api/settings', settingsRouter);
 app.route('/api/filesystem', filesystemRouter);
-app.route('/api/discover', discoverRouter);
 app.route('/api/webshare', webshareRouter);
 app.route('/api/media', episodesRouter); // Episodes under /api/media/:id/episodes
 app.route('/api/watcher', watcherRouter);
@@ -112,11 +138,44 @@ app.route('/api/episode-matcher', episodeMatcherRouter);
 app.route('/api/activities', activitiesRouter);
 
 // Error handling
+import { formatError, ApiError } from './lib/errors';
+
 app.onError((err, c) => {
   console.error('Error:', err);
-  return c.json({
-    error: err.message || 'Internal server error',
-  }, 500);
+  
+  if (err instanceof ApiError) {
+    return c.json(formatError(err), err.status);
+  }
+  
+  return c.json(formatError(err), 500);
+});
+
+// Health check endpoint
+app.get('/api/health', async (c) => {
+  try {
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`;
+    const dbHealthy = true;
+    
+    return c.json({
+      status: 'ok',
+      version: VERSION,
+      services: {
+        database: dbHealthy,
+        fileWatcher: true, // TODO: get actual status from service
+        episodeMonitor: true, // TODO: get actual status from service
+        autoImport: true, // TODO: get actual status from service
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return c.json({
+      status: 'degraded',
+      version: VERSION,
+      error: 'Database connection failed',
+      timestamp: new Date().toISOString(),
+    }, 503);
+  }
 });
 
 // Start server
