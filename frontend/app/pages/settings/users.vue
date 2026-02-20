@@ -11,134 +11,168 @@
     <div v-else-if="error" class="card p-8 text-center">
       <Icon name="mdi:alert-circle" class="w-12 h-12 mx-auto mb-3 text-red-500" />
       <p class="font-medium text-red-400">Failed to load users</p>
+      <p class="text-sm text-gray-500 mt-1">{{ errorMessage }}</p>
       <button @click="fetchUsers" class="btn btn-secondary btn-sm mt-4">Try Again</button>
     </div>
 
     <!-- Users List -->
-    <div v-else-if="users.length > 0" class="space-y-4">
-      <!-- Pending Approvals -->
-      <div v-if="pendingUsers.length > 0" class="card p-4">
-        <div class="flex items-center gap-2 mb-4">
-          <Icon name="mdi:account-clock" class="w-5 h-5 text-yellow-400" />
-          <h3 class="text-lg font-semibold">Pending Approvals ({{ pendingUsers.length }})</h3>
-        </div>
-        
-        <div class="space-y-2">
-          <div
-            v-for="user in pendingUsers"
-            :key="user.id"
-            class="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-          >
-            <div class="flex items-center gap-3">
-              <Icon name="mdi:account-outline" class="w-5 h-5 text-gray-400" />
-              <div>
-                <p class="font-medium">{{ user.username }}</p>
-                <p class="text-xs text-gray-500">Registered {{ formatDate(user.created_at) }}</p>
-              </div>
-            </div>
-            
-            <div class="flex gap-2">
-              <button
-                @click="approveUser(user)"
-                :disabled="processing === user.id"
-                class="btn btn-sm btn-primary"
-              >
-                <Icon
-                  :name="processing === user.id ? 'mdi:loading' : 'mdi:check'"
-                  :class="{ 'animate-spin': processing === user.id }"
-                  class="w-4 h-4 mr-1"
-                />
-                Approve
-              </button>
-              <button
-                @click="confirmReject(user)"
-                :disabled="processing === user.id"
-                class="btn btn-sm btn-secondary"
-              >
-                <Icon name="mdi:close" class="w-4 h-4 mr-1" />
-                Reject
-              </button>
-            </div>
+    <div v-else class="space-y-4">
+      <!-- Pending Approvals Alert -->
+      <div v-if="pendingUsers.length > 0" class="card p-4 bg-yellow-900/20 border border-yellow-600/30">
+        <div class="flex items-center gap-3">
+          <Icon name="mdi:alert" class="w-6 h-6 text-yellow-400" />
+          <div>
+            <h3 class="font-semibold text-yellow-300">{{ pendingUsers.length }} user(s) awaiting approval</h3>
+            <p class="text-sm text-yellow-200/70">Review and approve/reject below</p>
           </div>
         </div>
       </div>
 
-      <!-- All Users -->
+      <!-- Filters -->
       <div class="card p-4">
-        <h3 class="text-lg font-semibold mb-4">All Users</h3>
-        
+        <div class="flex gap-3">
+          <select v-model="filterRole" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+            <option value="">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+            <option value="user">User</option>
+          </select>
+          
+          <select v-model="filterApproval" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+            <option value="">All Status</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+          </select>
+
+          <div class="ml-auto text-sm text-gray-400 flex items-center">
+            Total: {{ filteredUsers.length }} users
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Table -->
+      <div class="card overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full">
             <thead>
-              <tr class="border-b border-gray-700">
-                <th class="text-left py-2 px-3">Username</th>
-                <th class="text-left py-2 px-3">Role</th>
-                <th class="text-left py-2 px-3">Status</th>
-                <th class="text-left py-2 px-3">Registered</th>
-                <th class="text-right py-2 px-3">Actions</th>
+              <tr class="border-b border-gray-700 bg-gray-800/50">
+                <th class="text-left py-3 px-4 font-semibold">Username</th>
+                <th class="text-left py-3 px-4 font-semibold">Role</th>
+                <th class="text-left py-3 px-4 font-semibold">Status</th>
+                <th class="text-left py-3 px-4 font-semibold">Language</th>
+                <th class="text-left py-3 px-4 font-semibold">Requests</th>
+                <th class="text-left py-3 px-4 font-semibold">Joined</th>
+                <th class="text-right py-3 px-4 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="user in approvedUsers"
+                v-for="user in filteredUsers"
                 :key="user.id"
-                class="border-b border-gray-800 hover:bg-gray-800/50"
+                class="border-b border-gray-800 hover:bg-gray-800/30 transition-colors"
+                :class="{ 'bg-yellow-900/10': !user.approved }"
               >
-                <td class="py-3 px-3">
+                <!-- Username -->
+                <td class="py-3 px-4">
                   <div class="flex items-center gap-2">
-                    <Icon name="mdi:account" class="w-4 h-4 text-gray-400" />
-                    <span class="font-medium">{{ user.username }}</span>
+                    <Icon 
+                      :name="user.approved ? 'mdi:account-check' : 'mdi:account-clock'" 
+                      class="w-5 h-5"
+                      :class="user.approved ? 'text-green-400' : 'text-yellow-400'"
+                    />
+                    <span class="font-medium">
+                      {{ user.username }}
+                      <span v-if="user.id === currentUser?.id" class="text-xs text-gray-500 ml-1">(you)</span>
+                    </span>
                   </div>
                 </td>
-                <td class="py-3 px-3">
+
+                <!-- Role -->
+                <td class="py-3 px-4">
                   <select
                     :value="user.role"
                     @change="changeRole(user, ($event.target as HTMLSelectElement).value)"
-                    :disabled="processing === user.id || user.id === currentUserId"
-                    class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="processing.has(user.id) || user.id === currentUser?.id"
+                    class="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
                   >
                     <option value="user">User</option>
+                    <option value="moderator">Moderator</option>
                     <option value="admin">Admin</option>
                   </select>
                 </td>
-                <td class="py-3 px-3">
+
+                <!-- Status -->
+                <td class="py-3 px-4">
                   <span
                     :class="[
                       'px-2 py-1 rounded-full text-xs font-medium',
-                      user.approved ? 'bg-green-600' : 'bg-yellow-600',
+                      user.approved 
+                        ? 'bg-green-600/20 text-green-400' 
+                        : 'bg-yellow-600/20 text-yellow-400',
                     ]"
                   >
-                    {{ user.approved ? 'Approved' : 'Pending' }}
+                    {{ user.approved ? '✓ Approved' : '⏳ Pending' }}
                   </span>
                 </td>
-                <td class="py-3 px-3 text-sm text-gray-400">
-                  {{ formatDate(user.created_at) }}
+
+                <!-- Language -->
+                <td class="py-3 px-4 text-sm text-gray-400">
+                  <span class="uppercase">{{ user.preferredLanguage || 'en' }}</span>
                 </td>
-                <td class="py-3 px-3 text-right">
-                  <button
-                    v-if="user.id !== currentUserId"
-                    @click="confirmDelete(user)"
-                    :disabled="processing === user.id"
-                    class="btn btn-sm btn-secondary text-red-400 hover:text-red-300"
-                  >
-                    <Icon name="mdi:delete" class="w-4 h-4" />
-                  </button>
-                  <span v-else class="text-xs text-gray-500">You</span>
+
+                <!-- Requests Count -->
+                <td class="py-3 px-4 text-sm text-gray-400">
+                  {{ user._stats?.mediaRequests || 0 }}
+                </td>
+
+                <!-- Joined Date -->
+                <td class="py-3 px-4 text-sm text-gray-400">
+                  {{ formatDate(user.createdAt) }}
+                </td>
+
+                <!-- Actions -->
+                <td class="py-3 px-4">
+                  <div class="flex justify-end gap-2">
+                    <!-- Approve (if pending) -->
+                    <button
+                      v-if="!user.approved"
+                      @click="approveUser(user)"
+                      :disabled="processing.has(user.id)"
+                      class="btn btn-sm btn-success"
+                    >
+                      <Icon
+                        :name="processing.has(user.id) ? 'mdi:loading' : 'mdi:check'"
+                        :class="{ 'animate-spin': processing.has(user.id) }"
+                        class="w-4 h-4 mr-1"
+                      />
+                      Approve
+                    </button>
+
+                    <!-- Delete -->
+                    <button
+                      v-if="user.id !== currentUser?.id"
+                      @click="confirmDelete(user)"
+                      :disabled="processing.has(user.id)"
+                      class="btn btn-sm btn-secondary hover:bg-red-600/20 hover:text-red-400"
+                    >
+                      <Icon name="mdi:delete" class="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
+
+          <!-- Empty State -->
+          <div v-if="filteredUsers.length === 0" class="p-12 text-center">
+            <Icon name="mdi:account-multiple" class="w-16 h-16 mx-auto mb-4 text-gray-600" />
+            <p class="text-gray-400">No users found with current filters</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Empty -->
-    <div v-else class="card p-12 text-center">
-      <Icon name="mdi:account-multiple" class="w-16 h-16 mx-auto mb-4 text-gray-600" />
-      <p class="text-gray-400">No users found</p>
-    </div>
-
-    <!-- Confirm Delete Modal -->
+    <!-- Delete Confirmation Modal -->
     <Teleport to="body">
       <Transition
         enter-active-class="transition-opacity duration-200"
@@ -148,20 +182,29 @@
       >
         <div
           v-if="userToDelete"
-          class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          class="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4"
           @click.self="userToDelete = null"
         >
-          <div class="card max-w-md w-full p-6">
-            <h3 class="text-xl font-bold mb-4">Delete User</h3>
-            <p class="text-gray-300 mb-6">
-              Are you sure you want to delete user <strong>{{ userToDelete.username }}</strong>? This action cannot be undone.
+          <div class="card p-6 max-w-md w-full">
+            <h3 class="text-xl font-semibold mb-2">Delete User?</h3>
+            <p class="text-gray-400 mb-6 text-sm">
+              Are you sure you want to delete user <strong class="text-white">"{{ userToDelete.username }}"</strong>?
+              This action cannot be undone.
             </p>
-            <div class="flex gap-3 justify-end">
-              <button @click="userToDelete = null" class="btn btn-secondary">
+            <div class="flex gap-3">
+              <button @click="userToDelete = null" class="btn btn-secondary flex-1">
                 Cancel
               </button>
-              <button @click="deleteUser(userToDelete)" class="btn btn-primary bg-red-600 hover:bg-red-500">
-                <Icon name="mdi:delete" class="w-4 h-4 mr-2" />
+              <button
+                @click="deleteUser(userToDelete)"
+                :disabled="deleting"
+                class="btn btn-danger flex-1"
+              >
+                <Icon
+                  :name="deleting ? 'mdi:loading' : 'mdi:delete'"
+                  :class="{ 'animate-spin': deleting }"
+                  class="w-5 h-5 mr-2"
+                />
                 Delete
               </button>
             </div>
@@ -175,137 +218,179 @@
 <script setup lang="ts">
 const config = useRuntimeConfig();
 const toast = useToast();
-const { user: currentUser } = useAuth();
 
 interface User {
   id: number;
   username: string;
-  role: 'admin' | 'user';
-  approved: number;
-  created_at: string;
+  role: string;
+  approved: boolean;
+  preferredLanguage: string;
+  createdAt: string;
+  _stats?: {
+    mediaRequests: number;
+    processedRequests: number;
+  };
 }
 
+// State
 const users = ref<User[]>([]);
-const loading = ref(false);
+const loading = ref(true);
 const error = ref(false);
-const processing = ref<number | null>(null);
+const errorMessage = ref('');
+const processing = ref(new Set<number>());
+const deleting = ref(false);
 const userToDelete = ref<User | null>(null);
+const currentUser = ref<User | null>(null);
 
-const currentUserId = computed(() => currentUser.value?.id);
+// Filters
+const filterRole = ref('');
+const filterApproval = ref('');
 
+// Computed
 const pendingUsers = computed(() => users.value.filter(u => !u.approved));
 const approvedUsers = computed(() => users.value.filter(u => u.approved));
+const filteredUsers = computed(() => {
+  let filtered = users.value;
+  
+  if (filterRole.value) {
+    filtered = filtered.filter(u => u.role === filterRole.value);
+  }
+  
+  if (filterApproval.value === 'approved') {
+    filtered = filtered.filter(u => u.approved);
+  } else if (filterApproval.value === 'pending') {
+    filtered = filtered.filter(u => !u.approved);
+  }
+  
+  return filtered.sort((a, b) => {
+    // Pending first
+    if (!a.approved && b.approved) return -1;
+    if (a.approved && !b.approved) return 1;
+    // Then by date (newest first)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+});
 
-const getAuthHeaders = () => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('unifarr_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+// Fetch current user
+const fetchCurrentUser = async () => {
+  try {
+    const response = await $fetch(`${config.public.apiBase}/api/users/me`);
+    currentUser.value = response as User;
+  } catch (err) {
+    console.error('Failed to fetch current user:', err);
+  }
 };
 
+// Fetch users
 const fetchUsers = async () => {
   loading.value = true;
   error.value = false;
   
   try {
-    const data = await $fetch<{ users: User[] }>(`${config.public.apiBase}/api/users`, {
-      headers: getAuthHeaders(),
-    });
-    users.value = data.users;
-  } catch (err) {
+    const response = await $fetch(`${config.public.apiBase}/api/users`);
+    users.value = (response as any).users || [];
+  } catch (err: any) {
     console.error('Failed to fetch users:', err);
     error.value = true;
-    toast.error('Failed to load users');
+    errorMessage.value = err.data?.error?.message || 'Unknown error';
   } finally {
     loading.value = false;
   }
 };
 
-const approveUser = async (user: User) => {
-  processing.value = user.id;
+// Change role
+const changeRole = async (user: User, newRole: string) => {
+  if (user.role === newRole) return;
+  
+  processing.value.add(user.id);
   
   try {
-    await $fetch(`${config.public.apiBase}/api/users/${user.id}/approve`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
+    await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
+      method: 'PATCH',
+      body: { role: newRole },
     });
     
-    toast.success(`User ${user.username} approved`);
-    fetchUsers();
+    user.role = newRole;
+    toast.success(`Changed ${user.username}'s role to ${newRole}`);
   } catch (err: any) {
-    toast.error(err.data?.error || 'Failed to approve user');
+    console.error('Failed to change role:', err);
+    toast.error(err.data?.error?.message || 'Failed to change role');
   } finally {
-    processing.value = null;
+    processing.value.delete(user.id);
   }
 };
 
-const confirmReject = (user: User) => {
-  userToDelete.value = user;
+// Approve user
+const approveUser = async (user: User) => {
+  processing.value.add(user.id);
+  
+  try {
+    await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
+      method: 'PATCH',
+      body: { approved: true },
+    });
+    
+    user.approved = true;
+    toast.success(`Approved ${user.username}`);
+  } catch (err: any) {
+    console.error('Failed to approve user:', err);
+    toast.error(err.data?.error?.message || 'Failed to approve user');
+  } finally {
+    processing.value.delete(user.id);
+  }
 };
 
+// Confirm delete
 const confirmDelete = (user: User) => {
   userToDelete.value = user;
 };
 
+// Delete user
 const deleteUser = async (user: User) => {
-  processing.value = user.id;
-  const isPending = !user.approved;
+  deleting.value = true;
   
   try {
-    if (isPending) {
-      await $fetch(`${config.public.apiBase}/api/users/${user.id}/reject`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-    } else {
-      await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-    }
-    
-    toast.success(`User ${user.username} deleted`);
-    userToDelete.value = null;
-    fetchUsers();
-  } catch (err: any) {
-    toast.error(err.data?.error || 'Failed to delete user');
-  } finally {
-    processing.value = null;
-  }
-};
-
-const changeRole = async (user: User, newRole: string) => {
-  if (user.role === newRole) return;
-  
-  processing.value = user.id;
-  
-  try {
-    await $fetch(`${config.public.apiBase}/api/users/${user.id}/role`, {
-      method: 'PUT',
-      body: { role: newRole },
-      headers: getAuthHeaders(),
+    await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
+      method: 'DELETE',
     });
     
-    toast.success(`User ${user.username} role changed to ${newRole}`);
-    fetchUsers();
+    users.value = users.value.filter(u => u.id !== user.id);
+    toast.success(`Deleted user ${user.username}`);
+    userToDelete.value = null;
   } catch (err: any) {
-    toast.error(err.data?.error || 'Failed to change role');
+    console.error('Failed to delete user:', err);
+    toast.error(err.data?.error?.message || 'Failed to delete user');
   } finally {
-    processing.value = null;
+    deleting.value = false;
   }
 };
 
+// Format date
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  
+  return date.toLocaleDateString();
 };
 
-onMounted(() => {
-  fetchUsers();
+// On mount
+onMounted(async () => {
+  await Promise.all([
+    fetchCurrentUser(),
+    fetchUsers(),
+  ]);
 });
 
-useHead({ title: 'User Management - Unifarr' });
+// Set page title
+useHead({
+  title: 'User Management - Unifarr',
+});
 </script>
