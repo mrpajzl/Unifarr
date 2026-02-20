@@ -6,8 +6,56 @@ import { mkdir } from 'fs/promises';
 import path from 'path';
 import { getMediaFileInfo, formatFileSize, formatDuration } from '../services/media-info';
 import { moveMediaFolder, validatePath } from '../services/folder-mover';
+import { getMediaTranslation, prewarmTranslations } from '../services/translation-manager';
+import { getCurrentUser } from '../middleware/auth';
 
 const app = new Hono();
+
+/**
+ * Helper: Get media with translation for user's preferred language
+ */
+async function getMediaWithTranslation(
+  media: any,
+  userLanguage: string = 'en',
+  apiKey?: string
+): Promise<any> {
+  // If requesting English or no TMDB ID, return base data
+  if (userLanguage === 'en' || !media.tmdbId || !media.type) {
+    return media;
+  }
+
+  // Try to get translation
+  if (apiKey) {
+    try {
+      const translation = await getMediaTranslation(
+        media.id,
+        media.tmdbId,
+        media.type as 'movie' | 'tv',
+        userLanguage,
+        apiKey
+      );
+
+      if (translation) {
+        return {
+          ...media,
+          title: translation.title,
+          overview: translation.overview || media.overview,
+          tagline: translation.tagline || media.tagline,
+          _language: userLanguage,
+          _baseTitle: media.title, // Keep EN title for reference
+        };
+      }
+    } catch (error) {
+      console.error(`Failed to get translation for media ${media.id}:`, error);
+    }
+  }
+
+  // Fallback to English
+  return {
+    ...media,
+    _language: 'en',
+  };
+}
 
 // Get all media items
 app.get('/', async (c) => {
@@ -139,79 +187,68 @@ app.post('/', async (c) => {
   
   const tmdb = await getTMDBService();
   
-  // Fetch both English and localized versions
-  let multiData;
-  if (type === 'movie') {
-    multiData = await tmdb.getMovieDetailsMultilang(tmdbId);
-  } else if (type === 'tv') {
-    multiData = await tmdb.getTVShowDetailsMultilang(tmdbId);
-  } else {
-    return c.json({ error: 'Invalid type. Must be movie or tv' }, 400);
-  }
+  // ── NEW: Fetch ENGLISH only (base language) ──────────────────────────────
+  const endpoint = type === 'movie' ? 'movie' : 'tv';
+  const mediaData = await tmdb[type === 'movie' ? 'getMovieDetails' : 'getTVShowDetails'](tmdbId);
   
-  if (!multiData) {
+  if (!mediaData) {
     return c.json({ error: 'Failed to fetch from TMDB' }, 500);
   }
   
-  const { en: mediaDataEn, localized: mediaDataLocal } = multiData;
+  // Extract base data (English)
+  const title = 'title' in mediaData ? mediaData.title : mediaData.name;
+  const originalTitle = 'original_title' in mediaData ? mediaData.original_title : 'original_name' in mediaData ? mediaData.original_name : undefined;
+  const year = mediaData.year;
   
-  // Use localized title for display, English for folder names
-  const title = 'title' in mediaDataLocal ? mediaDataLocal.title : mediaDataLocal.name;
-  const titleEn = 'title' in mediaDataEn ? mediaDataEn.title : mediaDataEn.name;
-  const year = mediaDataLocal.year;
-  
-  // Determine library path (ALWAYS use English title for folders - universal and filesystem-safe)
+  // Determine library path (use English title for folders)
   let libraryPath: string | undefined;
   try {
     const settings = await getSettings();
     
     const basePath = type === 'movie' ? settings.moviesPath : settings.tvPath;
-    const folderName = year ? `${titleEn} (${year})` : titleEn; // Use EN title
+    const folderName = year ? `${title} (${year})` : title;
     libraryPath = path.join(basePath, folderName);
   } catch (error) {
     console.error('Failed to determine library path:', error);
   }
   
-  // Insert into database (save both localized and EN versions)
+  // Insert into database (English as base)
   const inserted = await prisma.media.create({
     data: {
       type,
-      title, // Localized title
-      titleEn, // English title
-      originalTitle: 'original_title' in mediaDataLocal ? mediaDataLocal.original_title : ('original_name' in mediaDataLocal ? mediaDataLocal.original_name : undefined),
+      title, // English title (base)
+      originalTitle,
       year,
-      tmdbId: mediaDataLocal.id,
-      imdbId: 'imdb_id' in mediaDataLocal ? mediaDataLocal.imdb_id : undefined,
-      overview: mediaDataLocal.overview, // Localized overview
-      overviewEn: mediaDataEn.overview, // English overview
-      posterPath: mediaDataLocal.poster_path,
-      backdropPath: mediaDataLocal.backdrop_path,
-      voteAverage: mediaDataLocal.vote_average,
-      voteCount: mediaDataLocal.vote_count,
-      genres: JSON.stringify(mediaDataLocal.genres),
-      runtime: 'runtime' in mediaDataLocal ? mediaDataLocal.runtime : undefined,
-      numberOfSeasons: 'number_of_seasons' in mediaDataLocal ? mediaDataLocal.number_of_seasons : undefined,
-      numberOfEpisodes: 'number_of_episodes' in mediaDataLocal ? mediaDataLocal.number_of_episodes : undefined,
-      status: mediaDataLocal.status,
-      libraryPath, // Store the library path (using EN title)
+      tmdbId: mediaData.id,
+      imdbId: 'imdb_id' in mediaData ? mediaData.imdb_id : undefined,
+      overview: mediaData.overview, // English overview
+      tagline: mediaData.tagline,
+      posterPath: mediaData.poster_path,
+      backdropPath: mediaData.backdrop_path,
+      voteAverage: mediaData.vote_average,
+      voteCount: mediaData.vote_count,
+      genres: JSON.stringify(mediaData.genres),
+      runtime: 'runtime' in mediaData ? mediaData.runtime : undefined,
+      numberOfSeasons: 'number_of_seasons' in mediaData ? mediaData.number_of_seasons : undefined,
+      numberOfEpisodes: 'number_of_episodes' in mediaData ? mediaData.number_of_episodes : undefined,
+      status: mediaData.status,
+      libraryPath,
     },
   });
   
-  // Create folder in library (using English title)
+  // Create folder in library
   if (libraryPath) {
     try {
-      const folderName = year ? `${titleEn} (${year})` : titleEn;
+      const folderName = year ? `${title} (${year})` : title;
       
-      // Create folder
       await mkdir(libraryPath, { recursive: true });
       console.log(`✅ Created folder: ${libraryPath}`);
       
-      // Create file record
       await prisma.file.create({
         data: {
           path: libraryPath,
           filename: folderName,
-          parsedTitle: titleEn, // Use EN title for consistency
+          parsedTitle: title,
           parsedYear: year,
           size: BigInt(0),
           matched: true,
@@ -222,9 +259,17 @@ app.post('/', async (c) => {
       });
     } catch (error) {
       console.error('Failed to create folder:', error);
-      // Don't fail the request if folder creation fails
     }
   }
+  
+  // ── Pre-warm popular translations (async, non-blocking) ──────────────────
+  prewarmTranslations(
+    inserted.id,
+    tmdbId,
+    type as 'movie' | 'tv',
+    apiKey,
+    ['cs', 'de', 'fr'] // Top 3 languages
+  ).catch(err => console.error('Pre-warming failed:', err));
   
   return c.json(inserted);
 });

@@ -27,14 +27,17 @@ model User {
 model Media {
   id                Int       @id @default(autoincrement())
   type              String
-  title             String    // Localized title (user's preferred language)
-  titleEn           String?   @map("title_en") // English title (for folder names)
+  
+  // ── Base metadata (ALWAYS ENGLISH - for folders & fallback) ────────────
+  title             String    // English title
   originalTitle     String?   @map("original_title") // TMDB original title
+  overview          String?   @db.Text // English overview
+  tagline           String?   // English tagline
+  
+  // ── TMDB data ────────────────────────────────────────────────────────────
   year              Int?
   tmdbId            Int?      @map("tmdb_id")
   imdbId            String?   @map("imdb_id")
-  overview          String?   // Localized overview
-  overviewEn        String?   @map("overview_en") // English overview
   posterPath        String?   @map("poster_path")
   backdropPath      String?   @map("backdrop_path")
   voteAverage       Float?    @map("vote_average")
@@ -44,6 +47,8 @@ model Media {
   status            String?
   numberOfSeasons   Int?      @map("number_of_seasons")
   numberOfEpisodes  Int?      @map("number_of_episodes")
+  
+  // ── App data ─────────────────────────────────────────────────────────────
   monitored         Boolean   @default(false)
   libraryPath       String?   @map("library_path")
   deletedAt         DateTime? @map("deleted_at")
@@ -53,10 +58,28 @@ model Media {
   files         File[]
   downloads     Download[]
   mediaRequests MediaRequest[]
+  translations  MediaTranslation[]
 
   @@index([deletedAt])
   @@index([tmdbId])
   @@map("media")
+}
+
+model MediaTranslation {
+  id          Int       @id @default(autoincrement())
+  mediaId     Int       @map("media_id")
+  language    String    // ISO 639-1 (en, cs, de, fr, ...)
+  title       String
+  overview    String?   @db.Text
+  tagline     String?
+  cachedAt    DateTime  @default(now()) @map("cached_at")
+  expiresAt   DateTime  @map("expires_at")
+
+  media       Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, language])
+  @@index([expiresAt])
+  @@map("media_translations")
 }
 
 model File {
