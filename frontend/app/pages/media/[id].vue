@@ -163,6 +163,34 @@
             </a>
           </div>
 
+          <!-- Production Companies -->
+          <div v-if="productionCompanies.length" class="mb-6">
+            <h3 class="text-sm font-semibold uppercase text-gray-500 mb-3">Production Companies</h3>
+            <div class="flex flex-wrap gap-3">
+              <div
+                v-for="company in productionCompanies.slice(0, 6)"
+                :key="company.id"
+                class="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2"
+              >
+                <img
+                  v-if="company.logo_path"
+                  :src="getTMDBImageUrl(company.logo_path, 'w92')"
+                  :alt="company.name"
+                  class="h-6 object-contain"
+                />
+                <span class="text-sm text-gray-300">{{ company.name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Countries -->
+          <div v-if="productionCountries.length" class="mb-6">
+            <h3 class="text-sm font-semibold uppercase text-gray-500 mb-2">Countries</h3>
+            <p class="text-gray-300">
+              {{ productionCountries.map((c: any) => c.name).join(', ') }}
+            </p>
+          </div>
+
           <!-- Actions -->
           <div class="flex flex-wrap gap-2 mb-8">
             <!-- TMDB Mode: Add to Library -->
@@ -404,31 +432,34 @@
         </div>
       </div>
 
-      <!-- Cast (TMDB mode only) -->
+      <!-- Cast -->
       <div v-if="cast.length" class="mt-8">
         <h2 class="text-2xl font-bold mb-4">Cast</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
             v-for="person in cast.slice(0, 12)"
             :key="person.id"
-            class="group"
+            @click="openPersonDetails(person.id)"
+            class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 transition-colors text-left group"
           >
-            <div class="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 mb-2">
+            <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
               <img
                 v-if="person.profile_path"
                 :src="`https://image.tmdb.org/t/p/w185${person.profile_path}`"
                 :alt="person.name"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                class="w-full h-full object-cover"
               />
               <div v-else class="w-full h-full flex items-center justify-center">
-                <Icon name="mdi:account" class="w-12 h-12 text-gray-600" />
+                <Icon name="mdi:account" class="w-6 h-6 text-gray-600" />
               </div>
             </div>
-            <p class="text-sm font-medium truncate group-hover:text-primary-400 transition-colors">
-              {{ person.name }}
-            </p>
-            <p class="text-xs text-gray-500 truncate">{{ person.character }}</p>
-          </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate group-hover:text-primary-400 transition-colors">
+                {{ person.name }}
+              </p>
+              <p class="text-xs text-gray-500 truncate">{{ person.character }}</p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -538,6 +569,13 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Person Details Modal -->
+    <PersonDetailsModal
+      :show="showPersonModal"
+      :person-id="selectedPersonId"
+      @close="showPersonModal = false"
+    />
   </div>
 </template>
 
@@ -652,6 +690,8 @@ const trailer = computed(() => {
 
 const cast = computed(() => displayData.value?._tmdb?.credits?.cast || []);
 const recommendations = computed(() => displayData.value?._tmdb?.recommendations?.results || []);
+const productionCompanies = computed(() => displayData.value?._tmdb?.production_companies || []);
+const productionCountries = computed(() => displayData.value?._tmdb?.production_countries || []);
 
 // Library path editing (library mode only)
 const showEditPath = ref(false);
@@ -820,6 +860,15 @@ const deleteMedia = async () => {
     deleting.value = false;
     deleteConfirm.value = false;
   }
+};
+
+// Person Details Modal
+const showPersonModal = ref(false);
+const selectedPersonId = ref<number | null>(null);
+
+const openPersonDetails = (personId: number) => {
+  selectedPersonId.value = personId;
+  showPersonModal.value = true;
 };
 
 useHead({

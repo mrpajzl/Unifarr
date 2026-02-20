@@ -36,7 +36,31 @@ app.get('/:id', async (c) => {
   }
   
   const { files: _files, ...mediaData } = media;
-  return c.json({ ...mediaData, libraryPath });
+  
+  // Fetch full TMDB data if tmdbId is available
+  let tmdbData = null;
+  if (media.tmdbId && media.type) {
+    try {
+      const apiKey = await getTMDBApiKey();
+      const endpoint = media.type === 'movie' 
+        ? `https://api.themoviedb.org/3/movie/${media.tmdbId}?api_key=${apiKey}&append_to_response=videos,credits,recommendations`
+        : `https://api.themoviedb.org/3/tv/${media.tmdbId}?api_key=${apiKey}&append_to_response=videos,credits,recommendations`;
+      
+      const response = await fetch(endpoint);
+      if (response.ok) {
+        tmdbData = await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to fetch TMDB data for media detail:', error);
+      // Continue without TMDB data
+    }
+  }
+  
+  return c.json({ 
+    ...mediaData, 
+    libraryPath,
+    _tmdb: tmdbData,
+  });
 });
 
 // Get episodes for a TV show (raw file list, no TMDB required)
