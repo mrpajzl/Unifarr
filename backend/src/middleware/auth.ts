@@ -26,7 +26,10 @@ interface JWTPayload {
 export const requireAuth = async (c: Context, next: Next) => {
   const authHeader = c.req.header('Authorization');
   
+  console.log('[auth] Authorization header:', authHeader ? authHeader.substring(0, 30) + '...' : 'MISSING');
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('[auth] ❌ No valid Authorization header');
     return c.json({ 
       error: { 
         message: 'Authentication required', 
@@ -36,9 +39,11 @@ export const requireAuth = async (c: Context, next: Next) => {
   }
 
   const token = authHeader.replace('Bearer ', '');
+  console.log('[auth] Token extracted, length:', token.length);
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    console.log('[auth] ✅ Token valid for user:', payload.userId);
 
     // Fetch fresh user data (includes role, preferredLanguage, etc.)
     const user = await prisma.user.findUnique({
