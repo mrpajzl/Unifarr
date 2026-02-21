@@ -6,6 +6,7 @@
 
 import crypto from 'crypto';
 import apacheMd5 from 'apache-md5';
+import { parseFilename, ParsedMediaInfo } from '../lib/filename-parser';
 
 export interface WebshareCredentials {
   username: string;
@@ -345,6 +346,7 @@ export class WebshareService {
 
   /**
    * Get detailed file info (audio tracks, subtitles, video info)
+   * Parses info from filename since Webshare API doesn't provide audio/subtitle details
    */
   async getFileInfo(ident: string): Promise<WebshareFileInfo | null> {
     try {
@@ -370,10 +372,6 @@ export class WebshareService {
 
       const text = await response.text();
 
-      // DEBUG: Log raw XML response
-      console.log('🔍 Webshare file_info XML response:');
-      console.log(text);
-
       // Check for errors
       const statusMatch = text.match(/<status>([^<]+)<\/status>/);
       if (statusMatch && statusMatch[1] !== 'OK') {
@@ -381,46 +379,45 @@ export class WebshareService {
         return null;
       }
 
+      // Get filename from response
+      const nameMatch = text.match(/<name>([^<]+)<\/name>/);
+      if (!nameMatch) {
+        console.error('❌ No filename in Webshare response');
+        return null;
+      }
+
+      const filename = nameMatch[1];
+      console.log(`🔍 Parsing file info from filename: "${filename}"`);
+
+      // Parse media info from filename
+      const parsed = parseFilename(filename);
+
+      // Convert parsed data to WebshareFileInfo format
       const info: WebshareFileInfo = {};
 
-      // Parse audio tracks
-      const audioMatches = text.matchAll(/<audio>([\s\S]*?)<\/audio>/g);
-      info.audio = [];
-      for (const match of audioMatches) {
-        const audioXml = match[1];
-        const language = audioXml.match(/<language>([^<]+)<\/language>/)?.[1];
-        const codec = audioXml.match(/<codec>([^<]+)<\/codec>/)?.[1];
-        const channels = audioXml.match(/<channels>([^<]+)<\/channels>/)?.[1];
-        
-        if (language && codec) {
-          info.audio.push({ language, codec, channels });
-        }
+      if (parsed.audio && parsed.audio.length > 0) {
+        info.audio = parsed.audio.map(track => ({
+          language: track.language,
+          codec: track.codec || '',
+          channels: track.channels,
+        }));
       }
 
-      // Parse subtitle tracks  
-      const subtitleMatches = text.matchAll(/<subtitles>([\s\S]*?)<\/subtitles>/g);
-      info.subtitles = [];
-      for (const match of subtitleMatches) {
-        const subXml = match[1];
-        const language = subXml.match(/<language>([^<]+)<\/language>/)?.[1];
-        const format = subXml.match(/<format>([^<]+)<\/format>/)?.[1];
-        
-        if (language) {
-          info.subtitles.push({ language, format });
-        }
+      if (parsed.subtitles && parsed.subtitles.length > 0) {
+        info.subtitles = parsed.subtitles.map(lang => ({
+          language: lang,
+        }));
       }
 
-      // Parse video info
-      const videoXml = text.match(/<video>([\s\S]*?)<\/video>/)?.[1];
-      if (videoXml) {
+      if (parsed.video) {
         info.video = {
-          resolution: videoXml.match(/<resolution>([^<]+)<\/resolution>/)?.[1],
-          codec: videoXml.match(/<codec>([^<]+)<\/codec>/)?.[1],
-          fps: videoXml.match(/<fps>([^<]+)<\/fps>/)?.[1],
+          resolution: parsed.video.resolution,
+          codec: parsed.video.codec,
         };
       }
 
-      console.log(`ℹ️ File info for ${ident}:`, {
+      console.log(`ℹ️ Parsed file info for ${ident}:`, {
+        filename,
         audio: info.audio?.length || 0,
         subtitles: info.subtitles?.length || 0,
         video: info.video?.resolution || 'N/A',
