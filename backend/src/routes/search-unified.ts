@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { getTrackerManager } from '../services/trackers/tracker-manager';
 import { getSettings } from './settings';
 import { rankSearchResults } from '../lib/match-scorer';
+import { parseFilename } from '../lib/filename-parser';
 
 const router = new Hono();
 
@@ -122,7 +123,24 @@ router.post('/', async (c) => {
     });
 
     // Apply limit after ranking
-    const finalResults = limit ? rankedResults.slice(0, limit) : rankedResults;
+    const limitedResults = limit ? rankedResults.slice(0, limit) : rankedResults;
+
+    // Parse filename info (languages, audio, video) for all results
+    const finalResults = limitedResults.map((result: any) => {
+      const parsed = parseFilename(result.title);
+      return {
+        ...result,
+        // Add parsed media info
+        parsedInfo: {
+          languages: parsed.audio?.map(a => a.language).filter((l, i, arr) => arr.indexOf(l) === i) || [], // Unique languages
+          audioCodec: parsed.audio?.[0]?.codec,
+          audioChannels: parsed.audio?.[0]?.channels,
+          videoCodec: parsed.video?.codec,
+          resolution: parsed.video?.resolution || parsed.resolution,
+          subtitles: parsed.subtitles || [],
+        },
+      };
+    });
 
     console.log(`🎯 Ranked ${allResults.length} results → ${finalResults.length} after two-phase filtering`);
 
