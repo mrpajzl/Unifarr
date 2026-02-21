@@ -454,12 +454,11 @@ const performSearch = async () => {
     
     // Use template-based search if we have media data AND user didn't manually edit query
     if (props.mediaData?.tmdbId && !manualQueryEdit.value) {
-      const { apiFetch } = useApi();
       const endpoint = props.mediaType === 'movie' 
         ? `/api/search/templates/movie`
         : `/api/search/templates/tv`;
       
-      response = await apiFetch(endpoint, {
+      response = await api.apiFetch(endpoint, {
         method: 'POST',
         body: props.mediaData,
       });

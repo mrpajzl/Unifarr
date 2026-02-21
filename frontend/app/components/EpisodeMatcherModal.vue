@@ -223,6 +223,7 @@ const emit = defineEmits<{
 
 const config = useRuntimeConfig();
 const toast = useToast();
+const api = useApi();
 
 const activeTab = ref<'unmatched' | 'matched' | 'bulk'>('unmatched');
 const loading = ref(false);
@@ -237,8 +238,7 @@ const fetchFiles = async () => {
   loadingMessage.value = 'Loading files...';
   
   try {
-    const { apiFetch } = useApi();
-    const response = await apiFetch<any>(
+    const response = await api.apiFetch<any>(
       `/api/episode-matcher/${props.mediaId}/files`
     );
     
