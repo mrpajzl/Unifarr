@@ -172,8 +172,8 @@ const { data: episodesData, pending: loading, error: errorMsg } = await useAsync
       return await api.media.getEpisodes(props.mediaId);
     } else {
       // No TMDB ID - fetch raw files
-      const config = useRuntimeConfig();
-      return await $fetch(`${config.public.apiBase}/api/media/${props.mediaId}/files`);
+      const { apiFetch } = useApi();
+      return await apiFetch(`/api/media/${props.mediaId}/files`);
     }
   },
   { server: false }

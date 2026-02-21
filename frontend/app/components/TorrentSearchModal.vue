@@ -454,15 +454,14 @@ const performSearch = async () => {
     
     // Use template-based search if we have media data AND user didn't manually edit query
     if (props.mediaData?.tmdbId && !manualQueryEdit.value) {
-      const config = useRuntimeConfig();
+      const { apiFetch } = useApi();
       const endpoint = props.mediaType === 'movie' 
-        ? `${config.public.apiBase}/api/search/templates/movie`
-        : `${config.public.apiBase}/api/search/templates/tv`;
+        ? `/api/search/templates/movie`
+        : `/api/search/templates/tv`;
       
-      response = await $fetch(endpoint, {
+      response = await apiFetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(props.mediaData),
+        body: props.mediaData,
       });
       
       console.log(`🎯 Template search used ${response.queries?.length || 0} queries:`, response.queries);

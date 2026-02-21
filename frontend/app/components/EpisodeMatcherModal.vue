@@ -237,8 +237,9 @@ const fetchFiles = async () => {
   loadingMessage.value = 'Loading files...';
   
   try {
-    const response = await $fetch<any>(
-      `${config.public.apiBase}/api/episode-matcher/${props.mediaId}/files`
+    const { apiFetch } = useApi();
+    const response = await apiFetch<any>(
+      `/api/episode-matcher/${props.mediaId}/files`
     );
     
     allFiles.value = response.allFiles.map((f: any) => ({

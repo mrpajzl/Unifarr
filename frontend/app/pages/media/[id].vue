@@ -667,7 +667,8 @@ const { data: mediaFiles, refresh: refreshFiles } = await useAsyncData(
   async () => {
     if (isTMDBMode.value || !mediaId.value) return [];
     try {
-      const response = await $fetch(`${useRuntimeConfig().public.apiBase}/api/media/${mediaId.value}/files`);
+      const { apiFetch } = useApi();
+      const response = await apiFetch(`/api/media/${mediaId.value}/files`);
       return response as any[];
     } catch (err) {
       console.error('Failed to fetch media files:', err);

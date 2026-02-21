@@ -537,8 +537,8 @@ const fetchMediaItemInfo = async (mediaId: number) => {
 const fetchLibraryFiles = async (mediaId: number) => {
   loadingFiles.value = true;
   try {
-    const url = `${config.public.apiBase}/api/media/${mediaId}/files`;
-    libraryFiles.value = await $fetch(url);
+    const { apiFetch } = useApi();
+    libraryFiles.value = await apiFetch(`/api/media/${mediaId}/files`);
   } catch (err) {
     console.error('Failed to fetch library files:', err);
   } finally {
