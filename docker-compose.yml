@@ -46,7 +46,7 @@ services:
     container_name: unifarr-backend
     restart: unless-stopped
     ports:
-      - "3002:3002"
+      - "32302:3000"
     volumes:
       - /mnt/storage/media/movies:/data/movies
       - /mnt/storage/media/tvshows:/data/tvshows
@@ -54,7 +54,7 @@ services:
       - ./backend/data:/app/data
       - ./backend/downloads:/app/downloads
     environment:
-      - PORT=3002
+      - PORT=3000
       - NODE_ENV=production
       - DATABASE_URL=postgresql://unifarr:unifarr@postgres:5432/unifarr
       - MOVIES_PATH=/data/movies
@@ -77,13 +77,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NUXT_PUBLIC_API_BASE=http://10.0.0.141:3002
+        - NUXT_PUBLIC_API_BASE=http://10.0.0.141:32302
     container_name: unifarr-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "32301:3000"
     environment:
-      - NUXT_PUBLIC_API_BASE=http://10.0.0.141:3002
+      - NUXT_PUBLIC_API_BASE=http://10.0.0.141:32302
     depends_on:
       - backend
     networks:
