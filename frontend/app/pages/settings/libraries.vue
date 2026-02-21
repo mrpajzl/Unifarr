@@ -159,6 +159,7 @@
 
 <script setup lang="ts">
 const { showToast } = useToast();
+const api = useApi();
 
 const saving = ref(false);
 const showMoviesBrowser = ref(false);
@@ -176,15 +177,11 @@ const settings = reactive({
 // Load settings from backend
 onMounted(async () => {
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.moviesPath) settings.moviesPath = data.moviesPath;
-      if (data.tvPath) settings.tvPath = data.tvPath;
-      if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
-      if (data.torrentsPath !== undefined) settings.torrentsPath = data.torrentsPath;
-    }
+    const data = await api.apiFetch('/api/settings');
+    if (data.moviesPath) settings.moviesPath = data.moviesPath;
+    if (data.tvPath) settings.tvPath = data.tvPath;
+    if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
+    if (data.torrentsPath !== undefined) settings.torrentsPath = data.torrentsPath;
   } catch (error) {
     console.error('Failed to load settings:', error);
   }
@@ -194,24 +191,17 @@ const saveSettings = async () => {
   saving.value = true;
   
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`, {
+    await api.apiFetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         moviesPath: settings.moviesPath,
         tvPath: settings.tvPath,
         downloadsPath: settings.downloadsPath,
         torrentsPath: settings.torrentsPath,
-      }),
+      },
     });
 
-    if (response.ok) {
-      showToast('Library settings saved successfully', 'success');
-    } else {
-      const error = await response.json();
-      showToast(`Failed to save settings: ${error.error || 'Unknown error'}`, 'error');
-    }
+    showToast('Library settings saved successfully', 'success');
   } catch (error: any) {
     showToast(`Failed to save settings: ${error.message}`, 'error');
   } finally {
@@ -221,15 +211,11 @@ const saveSettings = async () => {
 
 const resetSettings = async () => {
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.moviesPath) settings.moviesPath = data.moviesPath;
-      if (data.tvPath) settings.tvPath = data.tvPath;
-      if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
-      if (data.torrentsPath !== undefined) settings.torrentsPath = data.torrentsPath;
-    }
+    const data = await api.apiFetch('/api/settings');
+    if (data.moviesPath) settings.moviesPath = data.moviesPath;
+    if (data.tvPath) settings.tvPath = data.tvPath;
+    if (data.downloadsPath) settings.downloadsPath = data.downloadsPath;
+    if (data.torrentsPath !== undefined) settings.torrentsPath = data.torrentsPath;
     showToast('Settings reloaded from server', 'info');
   } catch (error: any) {
     showToast(`Failed to reload settings: ${error.message}`, 'error');
