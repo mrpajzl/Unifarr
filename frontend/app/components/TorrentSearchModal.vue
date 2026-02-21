@@ -499,17 +499,15 @@ const performSearch = async () => {
     } else {
       // Use unified search for manual queries or when no media data
       // Pass minScore=0 to disable filtering for manual searches
-      const config = useRuntimeConfig();
-      response = await $fetch(`${config.public.apiBase}/api/search/unified`, {
+      response = await api.apiFetch('/api/search/unified', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           query: searchQuery.value,
           type: props.mediaType,
           year: props.mediaData?.releaseYear,
           limit: 50,
           minScore: 0, // Don't filter results for manual searches
-        }),
+        },
       });
       
       // Clear template info for manual search
