@@ -87,6 +87,43 @@ app.get('/search', async (c) => {
 });
 
 /**
+ * Get detailed file info (audio tracks, subtitles, etc.)
+ */
+app.get('/file-info/:ident', async (c) => {
+  try {
+    const ident = c.req.param('ident');
+    
+    if (!ident) {
+      return c.json({ error: 'File ident required' }, 400);
+    }
+    
+    const settings = await getSettings();
+    
+    if (!settings.webshare?.username || !settings.webshare?.password) {
+      return c.json({ error: 'Webshare not configured' }, 400);
+    }
+    
+    const webshare = new WebshareService({
+      username: settings.webshare.username,
+      password: settings.webshare.password,
+    });
+    
+    const info = await webshare.getFileInfo(ident);
+    
+    if (info) {
+      return c.json({ info, ident });
+    } else {
+      return c.json({ error: 'Failed to get file info' }, 500);
+    }
+  } catch (error) {
+    console.error('Webshare file info error:', error);
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to get file info' 
+    }, 500);
+  }
+});
+
+/**
  * Get download link for a file
  */
 app.post('/download-link', async (c) => {

@@ -12,6 +12,27 @@ export interface WebshareCredentials {
   password: string;
 }
 
+export interface WebshareAudioTrack {
+  language: string;
+  codec: string;
+  channels?: string;
+}
+
+export interface WebshareSubtitleTrack {
+  language: string;
+  format?: string;
+}
+
+export interface WebshareFileInfo {
+  audio?: WebshareAudioTrack[];
+  subtitles?: WebshareSubtitleTrack[];
+  video?: {
+    resolution?: string;
+    codec?: string;
+    fps?: string;
+  };
+}
+
 export interface WebshareFile {
   ident: string;
   name: string;
@@ -20,6 +41,7 @@ export interface WebshareFile {
   positive: number; // rating
   negative: number;
   img?: string;
+  info?: WebshareFileInfo; // Extended info from file_info API
 }
 
 export interface WebshareSearchResult {
@@ -319,6 +341,92 @@ export class WebshareService {
     console.log(`🎯 Best file: "${scored[0].file.name}" (score: ${(scored[0].score * 100).toFixed(1)}%)`);
     
     return scored[0].file;
+  }
+
+  /**
+   * Get detailed file info (audio tracks, subtitles, video info)
+   */
+  async getFileInfo(ident: string): Promise<WebshareFileInfo | null> {
+    try {
+      // Ensure we're logged in
+      if (!this.token) {
+        const success = await this.login();
+        if (!success) {
+          console.error('❌ Failed to login to Webshare for file info');
+          return null;
+        }
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/file_info/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          ident,
+          wst: this.token!,
+        }),
+      });
+
+      const text = await response.text();
+
+      // Check for errors
+      const statusMatch = text.match(/<status>([^<]+)<\/status>/);
+      if (statusMatch && statusMatch[1] !== 'OK') {
+        console.error('❌ Webshare file_info error:', text);
+        return null;
+      }
+
+      const info: WebshareFileInfo = {};
+
+      // Parse audio tracks
+      const audioMatches = text.matchAll(/<audio>([\s\S]*?)<\/audio>/g);
+      info.audio = [];
+      for (const match of audioMatches) {
+        const audioXml = match[1];
+        const language = audioXml.match(/<language>([^<]+)<\/language>/)?.[1];
+        const codec = audioXml.match(/<codec>([^<]+)<\/codec>/)?.[1];
+        const channels = audioXml.match(/<channels>([^<]+)<\/channels>/)?.[1];
+        
+        if (language && codec) {
+          info.audio.push({ language, codec, channels });
+        }
+      }
+
+      // Parse subtitle tracks  
+      const subtitleMatches = text.matchAll(/<subtitles>([\s\S]*?)<\/subtitles>/g);
+      info.subtitles = [];
+      for (const match of subtitleMatches) {
+        const subXml = match[1];
+        const language = subXml.match(/<language>([^<]+)<\/language>/)?.[1];
+        const format = subXml.match(/<format>([^<]+)<\/format>/)?.[1];
+        
+        if (language) {
+          info.subtitles.push({ language, format });
+        }
+      }
+
+      // Parse video info
+      const videoXml = text.match(/<video>([\s\S]*?)<\/video>/)?.[1];
+      if (videoXml) {
+        info.video = {
+          resolution: videoXml.match(/<resolution>([^<]+)<\/resolution>/)?.[1],
+          codec: videoXml.match(/<codec>([^<]+)<\/codec>/)?.[1],
+          fps: videoXml.match(/<fps>([^<]+)<\/fps>/)?.[1],
+        };
+      }
+
+      console.log(`ℹ️ File info for ${ident}:`, {
+        audio: info.audio?.length || 0,
+        subtitles: info.subtitles?.length || 0,
+        video: info.video?.resolution || 'N/A',
+      });
+
+      return info;
+    } catch (error) {
+      console.error('❌ Webshare getFileInfo error:', error);
+      return null;
+    }
   }
 }
 
