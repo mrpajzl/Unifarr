@@ -184,6 +184,33 @@
                   {{ result.provider }}
                 </span>
 
+                <!-- Language Badges (from parsed info) -->
+                <div v-if="result.parsedInfo?.languages?.length > 0" class="flex items-center gap-1">
+                  <Icon name="mdi:translate" class="w-3.5 h-3.5 text-gray-500" />
+                  <div class="flex gap-1">
+                    <span
+                      v-for="lang in result.parsedInfo.languages.slice(0, 3)"
+                      :key="lang"
+                      class="px-1.5 py-0.5 bg-purple-600/20 text-purple-400 rounded text-xs font-mono"
+                      :title="`Audio: ${lang}`"
+                    >
+                      {{ lang === 'Czech' ? 'CZ' : lang === 'Slovak' ? 'SK' : lang === 'English' ? 'EN' : lang === 'German' ? 'DE' : lang.substring(0, 2).toUpperCase() }}
+                    </span>
+                    <span v-if="result.parsedInfo.languages.length > 3" class="px-1.5 py-0.5 bg-purple-600/20 text-purple-400 rounded text-xs">
+                      +{{ result.parsedInfo.languages.length - 3 }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Audio Codec (optional, shows codec + channels) -->
+                <span
+                  v-if="result.parsedInfo?.audioCodec"
+                  class="px-2 py-0.5 bg-indigo-600/20 text-indigo-400 rounded text-xs font-medium"
+                  :title="`Audio: ${result.parsedInfo.audioCodec}${result.parsedInfo.audioChannels ? ' ' + result.parsedInfo.audioChannels : ''}`"
+                >
+                  {{ result.parsedInfo.audioCodec }}{{ result.parsedInfo.audioChannels ? ' ' + result.parsedInfo.audioChannels : '' }}
+                </span>
+
                 <div class="flex-1" />
 
                 <!-- Torrent Health (only for non-Webshare) -->
@@ -223,19 +250,6 @@
 
               <!-- Action Buttons -->
               <div class="flex gap-2">
-                <!-- Info button for Webshare results -->
-                <button
-                  v-if="result.provider === 'Webshare'"
-                  @click="toggleExpandResult(index, result)"
-                  class="btn btn-secondary btn-sm"
-                  :title="expandedResults.has(index) ? 'Hide details' : 'Show audio/subtitle info'"
-                >
-                  <Icon
-                    :name="expandedResults.has(index) ? 'mdi:chevron-up' : 'mdi:information-outline'"
-                    class="w-4 h-4"
-                  />
-                </button>
-                
                 <a
                   v-if="result.infoUrl"
                   :href="result.infoUrl"
@@ -259,83 +273,6 @@
                 </button>
               </div>
 
-              <!-- Expanded File Info (Webshare only) -->
-              <div
-                v-if="expandedResults.has(index) && result.provider === 'Webshare'"
-                class="mt-3 pt-3 border-t border-gray-700"
-              >
-                <!-- Loading state -->
-                <div v-if="loadingFileInfo.has(result.downloadUrl?.replace('webshare:', '') || '')" class="flex items-center justify-center py-2">
-                  <Icon name="mdi:loading" class="w-5 h-5 animate-spin text-gray-400" />
-                  <span class="ml-2 text-sm text-gray-400">Loading details...</span>
-                </div>
-
-                <!-- File Info -->
-                <div v-else-if="fileInfo.has(result.downloadUrl?.replace('webshare:', '') || '')" class="space-y-3">
-                  <template v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '')">
-                    <!-- Audio Tracks -->
-                    <div v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').audio?.length > 0">
-                      <div class="flex items-center gap-2 mb-1.5">
-                        <Icon name="mdi:volume-high" class="w-4 h-4 text-blue-400" />
-                        <span class="text-xs font-semibold text-gray-300">Audio Tracks</span>
-                      </div>
-                      <div class="space-y-1">
-                        <div
-                          v-for="(audio, idx) in fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').audio"
-                          :key="idx"
-                          class="flex items-center gap-2 text-xs bg-gray-800/50 rounded px-2 py-1"
-                        >
-                          <span class="font-mono text-blue-400">{{ audio.language }}</span>
-                          <span class="text-gray-500">•</span>
-                          <span class="text-gray-400">{{ audio.codec }}</span>
-                          <span v-if="audio.channels" class="text-gray-500">{{ audio.channels }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Subtitles -->
-                    <div v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').subtitles?.length > 0">
-                      <div class="flex items-center gap-2 mb-1.5">
-                        <Icon name="mdi:subtitles-outline" class="w-4 h-4 text-green-400" />
-                        <span class="text-xs font-semibold text-gray-300">Subtitles</span>
-                      </div>
-                      <div class="flex flex-wrap gap-1.5">
-                        <span
-                          v-for="(sub, idx) in fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').subtitles"
-                          :key="idx"
-                          class="px-2 py-0.5 bg-green-600/20 text-green-400 rounded text-xs font-mono"
-                        >
-                          {{ sub.language }}{{ sub.format ? ` (${sub.format})` : '' }}
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- Video Info -->
-                    <div v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video">
-                      <div class="flex items-center gap-2 mb-1.5">
-                        <Icon name="mdi:video-outline" class="w-4 h-4 text-purple-400" />
-                        <span class="text-xs font-semibold text-gray-300">Video</span>
-                      </div>
-                      <div class="flex items-center gap-3 text-xs">
-                        <span v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video.resolution" class="text-purple-400 font-mono">
-                          {{ fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video.resolution }}
-                        </span>
-                        <span v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video.codec" class="text-gray-400">
-                          {{ fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video.codec }}
-                        </span>
-                        <span v-if="fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video.fps" class="text-gray-500">
-                          {{ fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video.fps }} FPS
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- No info available -->
-                    <div v-if="!fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').audio?.length && !fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').subtitles?.length && !fileInfo.get(result.downloadUrl?.replace('webshare:', '') || '').video" class="text-xs text-gray-500 italic">
-                      No detailed information available
-                    </div>
-                  </template>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -401,11 +338,6 @@ const downloading = ref(new Set<number>());
 const usedQueries = ref<string[]>([]);
 const usedOverride = ref(false);
 const manualQueryEdit = ref(false);
-
-// File info (audio/subtitles) for Webshare results
-const fileInfo = ref<Map<string, any>>(new Map());
-const loadingFileInfo = ref<Set<string>>(new Set());
-const expandedResults = ref<Set<number>>(new Set());
 
 // Sorting and filtering
 const sortBy = ref<'matchScore' | 'size' | 'seeders'>('matchScore');
@@ -617,43 +549,6 @@ const performSearch = async () => {
     error.value = err.message || 'Failed to search torrents';
   } finally {
     searching.value = false;
-  }
-};
-
-// Load file info for Webshare results (audio/subtitles)
-const loadFileInfo = async (result: TorrentResult) => {
-  if (result.provider !== 'Webshare') return;
-  
-  const ident = result.downloadUrl?.replace('webshare:', '');
-  if (!ident) return;
-  
-  // Skip if already loading or loaded
-  if (loadingFileInfo.value.has(ident) || fileInfo.value.has(ident)) return;
-  
-  loadingFileInfo.value.add(ident);
-  
-  try {
-    const response = await api.webshare.getFileInfo(ident);
-    if (response && response.info) {
-      fileInfo.value.set(ident, response.info);
-    }
-  } catch (err) {
-    console.error('Failed to load file info:', err);
-  } finally {
-    loadingFileInfo.value.delete(ident);
-  }
-};
-
-// Toggle result expansion
-const toggleExpandResult = async (index: number, result: TorrentResult) => {
-  if (expandedResults.value.has(index)) {
-    expandedResults.value.delete(index);
-  } else {
-    expandedResults.value.add(index);
-    // Load file info when expanding Webshare result
-    if (result.provider === 'Webshare') {
-      await loadFileInfo(result);
-    }
   }
 };
 
