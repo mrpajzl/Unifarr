@@ -312,17 +312,16 @@ const handleSearch = async () => {
   error.value = false;
   
   try {
-    const config = useRuntimeConfig();
     let results;
     
     if (searchType.value === 'movies') {
-      const data = await $fetch<{ results: TMDBSearchResult[] }>(`${config.public.apiBase}/api/search/tmdb/movie?query=${encodeURIComponent(q)}`);
+      const data = await api.apiFetch<{ results: TMDBSearchResult[] }>(`/api/search/tmdb/movie?query=${encodeURIComponent(q)}`);
       results = data.results;
     } else if (searchType.value === 'tv') {
-      const data = await $fetch<{ results: TMDBSearchResult[] }>(`${config.public.apiBase}/api/search/tmdb/tv?query=${encodeURIComponent(q)}`);
+      const data = await api.apiFetch<{ results: TMDBSearchResult[] }>(`/api/search/tmdb/tv?query=${encodeURIComponent(q)}`);
       results = data.results;
     } else {
-      const data = await $fetch<{ results: TMDBSearchResult[] }>(`${config.public.apiBase}/api/search/tmdb/multi?query=${encodeURIComponent(q)}`);
+      const data = await api.apiFetch<{ results: TMDBSearchResult[] }>(`/api/search/tmdb/multi?query=${encodeURIComponent(q)}`);
       results = data.results;
     }
     
@@ -455,17 +454,16 @@ const loadFromUrl = async () => {
     error.value = false;
     
     try {
-      const config = useRuntimeConfig();
       let results;
       
       if (searchType.value === 'movies') {
-        const data = await $fetch<{ results: TMDBSearchResult[] }>(`${config.public.apiBase}/api/search/tmdb/movie?query=${encodeURIComponent(q)}`);
+        const data = await api.apiFetch<{ results: TMDBSearchResult[] }>(`/api/search/tmdb/movie?query=${encodeURIComponent(q)}`);
         results = data.results;
       } else if (searchType.value === 'tv') {
-        const data = await $fetch<{ results: TMDBSearchResult[] }>(`${config.public.apiBase}/api/search/tmdb/tv?query=${encodeURIComponent(q)}`);
+        const data = await api.apiFetch<{ results: TMDBSearchResult[] }>(`/api/search/tmdb/tv?query=${encodeURIComponent(q)}`);
         results = data.results;
       } else {
-        const data = await $fetch<{ results: TMDBSearchResult[] }>(`${config.public.apiBase}/api/search/tmdb/multi?query=${encodeURIComponent(q)}`);
+        const data = await api.apiFetch<{ results: TMDBSearchResult[] }>(`/api/search/tmdb/multi?query=${encodeURIComponent(q)}`);
         results = data.results;
       }
       
