@@ -12,7 +12,7 @@ import { Context, Next } from 'hono';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db/prisma';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'unifarr-secret-change-in-production';
 
 interface JWTPayload {
   userId: number;
