@@ -412,17 +412,30 @@ export class QBittorrentClient {
       save_path: options.downloadPath,
       // Disable the internal auto-management so we control paths
       use_subcategories: false,
+      
+      // Auto-delete torrents after seeding limits
+      // 1 = remove torrent + files, 2 = remove torrent only (keep files)
+      // We use 1 because files are already copied to library
+      max_ratio_act: 1,
     };
 
+    // Default seeding limits if not provided
     if (options.seedRatio !== undefined) {
       prefs.max_ratio_enabled = true;
       prefs.max_ratio = options.seedRatio;
-      prefs.max_ratio_act = 1; // 1 = remove torrent when ratio reached
+    } else {
+      // Default: seed to 2.0 ratio
+      prefs.max_ratio_enabled = true;
+      prefs.max_ratio = 2.0;
     }
 
     if (options.seedTimeMinutes !== undefined) {
       prefs.max_seeding_time_enabled = true;
       prefs.max_seeding_time = options.seedTimeMinutes;
+    } else {
+      // Default: seed for 7 days (10080 minutes)
+      prefs.max_seeding_time_enabled = true;
+      prefs.max_seeding_time = 10080;
     }
 
     const body = new URLSearchParams({ json: JSON.stringify(prefs) });
@@ -434,7 +447,7 @@ export class QBittorrentClient {
     });
 
     if (!res.ok) throw new Error(`app/setPreferences failed: ${res.status}`);
-    console.log('⚙️  qBittorrent preferences applied');
+    console.log(`⚙️  qBittorrent configured: seed ratio ${prefs.max_ratio}, time ${prefs.max_seeding_time}min, auto-delete enabled`);
   }
 }
 
