@@ -370,6 +370,10 @@ export class WebshareService {
 
       const text = await response.text();
 
+      // DEBUG: Log raw XML response
+      console.log('🔍 Webshare file_info XML response:');
+      console.log(text);
+
       // Check for errors
       const statusMatch = text.match(/<status>([^<]+)<\/status>/);
       if (statusMatch && statusMatch[1] !== 'OK') {
