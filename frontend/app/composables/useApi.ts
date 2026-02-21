@@ -29,6 +29,9 @@ export const useApi = () => {
   }
 
   return {
+    // Expose apiFetch for direct use
+    apiFetch,
+    
     // Media endpoints
     media: {
       getAll: () => apiFetch<MediaItem[]>('/api/media'),
