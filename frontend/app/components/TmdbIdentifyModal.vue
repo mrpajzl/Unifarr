@@ -201,7 +201,10 @@ const selectResult = async (result: any, force = false) => {
     }
     
     console.error('Identification failed:', err);
-    toast.error(`Failed to identify: ${err.message || 'Unknown error'}`);
+    
+    // Show specific error message from backend
+    const errorMessage = err.data?.error || err.message || 'Unknown error';
+    toast.error(`Failed to identify: ${errorMessage}`);
   } finally {
     identifying.value = false;
   }

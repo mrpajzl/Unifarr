@@ -655,7 +655,14 @@ app.patch('/:id/identify', async (c) => {
     const response = await fetch(endpoint);
     
     if (!response.ok) {
-      return c.json({ error: 'Failed to fetch from TMDB' }, 500);
+      const tmdbError = await response.json().catch(() => ({}));
+      const errorMsg = tmdbError.status_message || `TMDB API returned ${response.status}`;
+      console.error(`TMDB API error for ${type} ${tmdbId}:`, errorMsg);
+      return c.json({ 
+        error: `Failed to fetch from TMDB: ${errorMsg}`,
+        tmdbId,
+        statusCode: response.status 
+      }, response.status === 404 ? 404 : 500);
     }
     
     const tmdbData = await response.json() as any;
