@@ -185,6 +185,8 @@ export const useApi = () => {
       test: () => apiFetch<{ success: boolean; message?: string; error?: string }>('/api/webshare/test', { method: 'POST' }),
       search: (query: string, auto = false) => 
         apiFetch<{ files: any[]; total: number; bestFile: any | null }>(`/api/webshare/search?query=${encodeURIComponent(query)}&auto=${auto}`),
+      getFileInfo: (ident: string) =>
+        apiFetch<{ info: any; ident: string }>(`/api/webshare/file-info/${ident}`),
       getDownloadLink: (ident: string) =>
         apiFetch<{ link: string; ident: string }>('/api/webshare/download-link', { method: 'POST', body: { ident } }),
       download: (ident: string, filename: string, mediaId?: number, targetPath?: string) =>
