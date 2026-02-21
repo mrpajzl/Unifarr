@@ -326,11 +326,7 @@ const activeFilterCount = computed(() => {
 // Fetch settings to check if library is configured
 const { data: settings } = await useAsyncData('settings-tv', async () => {
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
-    if (response.ok) {
-      return await response.json();
-    }
+    return await api.apiFetch('/api/settings');
   } catch (error) {
     console.error('Failed to load settings:', error);
   }
