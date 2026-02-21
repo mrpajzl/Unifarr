@@ -292,7 +292,7 @@ const handleRangeSelect = (endIndex: number) => {
   rangePreviewHoverIndex.value = null;
 };
 
-// URL query params
+// Get route for URL params (declared later, but need it early for initialization)
 const route = useRoute();
 
 // Initialize filters from URL query params
@@ -444,7 +444,6 @@ const filteredMovies = computed(() => {
 
 // Lazy loading with URL state
 const itemsPerPage = ref(50);
-const route = useRoute();
 const router = useRouter();
 
 // Initialize from URL query param, default to 1

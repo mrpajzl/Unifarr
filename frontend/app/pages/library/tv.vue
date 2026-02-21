@@ -303,10 +303,8 @@ const handleRangeSelect = (endIndex: number) => {
   rangePreviewHoverIndex.value = null;
 };
 
-// URL query params
-const route = useRoute();
-
 // Initialize filters from URL query params
+const route = useRoute();
 const searchQuery = ref((route.query.q as string) || '');
 const sortBy = ref((route.query.sort as string) || 'title');
 const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'asc');
@@ -441,7 +439,6 @@ const filteredShows = computed(() => {
 
 // Lazy loading with URL state
 const itemsPerPage = ref(50);
-const route = useRoute();
 const router = useRouter();
 
 // Initialize from URL query param, default to 1
