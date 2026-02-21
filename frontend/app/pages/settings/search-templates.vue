@@ -112,21 +112,14 @@ const saveSettings = async () => {
   saving.value = true;
   
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`, {
+    await api.apiFetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         searchTemplates: settings.searchTemplates,
-      }),
+      },
     });
 
-    if (response.ok) {
-      toast.success('Search templates saved successfully');
-    } else {
-      const error = await response.json();
-      toast.error(`Failed to save settings: ${error.error || 'Unknown error'}`);
-    }
+    toast.success('Search templates saved successfully');
   } catch (error: any) {
     toast.error(`Failed to save settings: ${error.message}`);
   } finally {

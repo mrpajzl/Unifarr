@@ -183,15 +183,12 @@ const save = async () => {
     }
     
     // Save settings
-    const saveResponse = await fetch(`${config.public.apiBase}/api/settings`, {
+    await api.apiFetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         searchTemplates: settings.searchTemplates,
-      }),
+      },
     });
-    
-    if (!saveResponse.ok) throw new Error('Failed to save settings');
     
     toast.success(useCustom.value ? 'Custom templates saved' : 'Using default templates');
     emit('saved');

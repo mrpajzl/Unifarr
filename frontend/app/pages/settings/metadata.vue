@@ -158,19 +158,12 @@ const saveSettings = async () => {
   saving.value = true;
   
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`, {
+    await api.apiFetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tmdbApiKey: settings.tmdbApiKey }),
+      body: { tmdbApiKey: settings.tmdbApiKey },
     });
 
-    if (response.ok) {
-      showToast('Metadata settings saved successfully', 'success');
-    } else {
-      const error = await response.json();
-      showToast(`Failed to save settings: ${error.error || 'Unknown error'}`, 'error');
-    }
+    showToast('Metadata settings saved successfully', 'success');
   } catch (error: any) {
     showToast(`Failed to save settings: ${error.message}`, 'error');
   } finally {
@@ -218,13 +211,10 @@ const loginWithTMDB = async () => {
 
 const handleTMDBCallback = async (requestToken: string) => {
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/tmdb-auth/create-session`, {
+    const data = await api.apiFetch('/api/tmdb-auth/create-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestToken }),
+      body: { requestToken },
     });
-    const data = await response.json();
 
     if (data.sessionId) {
       localStorage.setItem('tmdb-session-id', data.sessionId);
@@ -246,10 +236,8 @@ const logoutTMDB = async () => {
   try {
     const sessionId = localStorage.getItem('tmdb-session-id');
     if (sessionId) {
-      const config = useRuntimeConfig();
-      await fetch(`${config.public.apiBase}/api/tmdb-auth/session`, {
+      await api.apiFetch('/api/tmdb-auth/session', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
       });
     }
