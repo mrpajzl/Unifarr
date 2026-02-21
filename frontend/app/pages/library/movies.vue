@@ -292,15 +292,34 @@ const handleRangeSelect = (endIndex: number) => {
   rangePreviewHoverIndex.value = null;
 };
 
-// Filters
-const searchQuery = ref('');
-const sortBy = ref('title');
-const sortOrder = ref<'asc' | 'desc'>('asc');
-const genreFilter = ref('');
-const yearFilter = ref('');
-const qualityFilter = ref('');
-const showOnlyWithoutTMDB = ref(false);
-const showOnlyMissingFile = ref(false);
+// URL query params
+const route = useRoute();
+
+// Initialize filters from URL query params
+const searchQuery = ref((route.query.q as string) || '');
+const sortBy = ref((route.query.sort as string) || 'title');
+const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'asc');
+const genreFilter = ref((route.query.genre as string) || '');
+const yearFilter = ref((route.query.year as string) || '');
+const qualityFilter = ref((route.query.quality as string) || '');
+const showOnlyWithoutTMDB = ref(route.query.noTmdb === 'true');
+const showOnlyMissingFile = ref(route.query.noFile === 'true');
+
+// Sync filters to URL
+watch([searchQuery, sortBy, sortOrder, genreFilter, yearFilter, qualityFilter, showOnlyWithoutTMDB, showOnlyMissingFile], () => {
+  const query: Record<string, string> = {};
+  
+  if (searchQuery.value) query.q = searchQuery.value;
+  if (sortBy.value !== 'title') query.sort = sortBy.value;
+  if (sortOrder.value !== 'asc') query.order = sortOrder.value;
+  if (genreFilter.value) query.genre = genreFilter.value;
+  if (yearFilter.value) query.year = yearFilter.value;
+  if (qualityFilter.value) query.quality = qualityFilter.value;
+  if (showOnlyWithoutTMDB.value) query.noTmdb = 'true';
+  if (showOnlyMissingFile.value) query.noFile = 'true';
+  
+  navigateTo({ query }, { replace: true });
+}, { deep: true });
 
 const activeFilterCount = computed(() => {
   let count = 0;
