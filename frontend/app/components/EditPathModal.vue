@@ -152,7 +152,7 @@ const emit = defineEmits<{
   updated: [newPath: string];
 }>();
 
-const config = useRuntimeConfig();
+const api = useApi();
 const toast = useToast();
 
 const newPath = ref('');
@@ -174,7 +174,7 @@ const handleConfirm = async () => {
   updating.value = true;
 
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/media/${props.mediaId}/update-path`, {
+    const response = await api.apiFetch(`/api/media/${props.mediaId}/update-path`, {
       method: 'POST',
       body: {
         newPath: newPath.value,

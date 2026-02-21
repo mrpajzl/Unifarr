@@ -276,6 +276,7 @@ const emit = defineEmits<{
 }>()
 
 const tmdb = useTMDB()
+const api = useApi()
 
 // Selection state
 const { 
@@ -430,8 +431,6 @@ const handleIdentifySuccess = async (tmdbId: number, type: 'movie' | 'tv') => {
   const mediaEvents = useMediaEvents()
   
   try {
-    const config = useRuntimeConfig()
-    
     // Optimistic update - update UI immediately
     const oldTmdbId = props.media.tmdbId
     props.media.tmdbId = tmdbId
@@ -442,10 +441,9 @@ const handleIdentifySuccess = async (tmdbId: number, type: 'movie' | 'tv') => {
     emit('identified', props.media.id)
     
     // Send request to backend
-    await $fetch(`${config.public.apiBase}/api/media/${props.media.id}/identify`, {
+    await api.apiFetch(`/api/media/${props.media.id}/identify`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tmdbId, type }),
+      body: { tmdbId, type },
     })
     
     // Broadcast global event for other components

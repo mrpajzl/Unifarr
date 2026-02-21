@@ -585,15 +585,14 @@ const selectResult = async (result: TorrentResult, index: number) => {
     } else if (downloadUrl.startsWith('magnet:') || downloadUrl.startsWith('sktorrent:')) {
       // Torrent: magnet link or SKTorrent download.
       // savePath is resolved server-side from mediaId + library files.
-      const response = await $fetch(`${config.public.apiBase}/api/downloads`, {
+      const response = await api.apiFetch('/api/downloads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           type: 'torrent',
           magnetUrl: downloadUrl, // Backend will handle sktorrent: prefix
           ...(props.mediaId ? { mediaId: props.mediaId } : {}),
           category: props.mediaType === 'movie' ? 'movies' : 'tvshows',
-        }),
+        },
       });
       
       toast.success('Torrent added to download queue!');
