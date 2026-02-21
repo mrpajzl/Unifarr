@@ -123,6 +123,7 @@ const emit = defineEmits<{
 const toast = useToast();
 const { getTMDBImageUrl } = useFormatters();
 const config = useRuntimeConfig();
+const api = useApi();
 
 const searchQuery = ref(props.initialQuery);
 const searchInput = ref<HTMLInputElement>();
@@ -146,13 +147,8 @@ const handleSearch = () => {
     searched.value = true;
 
     try {
-      const response = await $fetch<any>(
-        `${config.public.apiBase}/api/search/tmdb/multi`,
-        {
-          params: {
-            query: searchQuery.value,
-          },
-        }
+      const response = await api.apiFetch<any>(
+        `/api/search/tmdb/multi?query=${encodeURIComponent(searchQuery.value)}`
       );
 
       // Filter by media type if provided
@@ -181,33 +177,29 @@ const selectResult = async (result: any, force = false) => {
   try {
     const type = result.media_type || (result.title ? 'movie' : 'tv');
     
-    const res = await fetch(`${config.public.apiBase}/api/media/${props.mediaId}/identify`, {
+    await api.apiFetch(`/api/media/${props.mediaId}/identify`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         tmdbId: result.id,
         type: type,
         force,
-      }),
+      },
     });
-
-    if (!res.ok) {
-      const data = await res.json();
-      // If conflict and not yet forced, ask user to confirm reassign
-      if (res.status === 400 && data.conflictWith && !force) {
-        if (confirm(`TMDB ID ${result.id} is already assigned to "${data.conflictWith}". Reassign it to "${result.title || result.name}"?`)) {
-          identifying.value = false;
-          return selectResult(result, true);
-        }
-        return;
-      }
-      throw new Error(data.error || `HTTP ${res.status}`);
-    }
 
     toast.success(`Identified as ${result.title || result.name}`);
     emit('identified');
     emit('update:modelValue', false);
   } catch (err: any) {
+    // Handle conflict error
+    if (err.data?.conflictWith && !force) {
+      if (confirm(`TMDB ID ${result.id} is already assigned to "${err.data.conflictWith}". Reassign it to "${result.title || result.name}"?`)) {
+        identifying.value = false;
+        return selectResult(result, true);
+      }
+      identifying.value = false;
+      return;
+    }
+    
     console.error('Identification failed:', err);
     toast.error(`Failed to identify: ${err.message || 'Unknown error'}`);
   } finally {
