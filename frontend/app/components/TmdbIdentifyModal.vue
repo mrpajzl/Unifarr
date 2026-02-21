@@ -187,7 +187,7 @@ const selectResult = async (result: any, force = false) => {
     });
 
     toast.success(`Identified as ${result.title || result.name}`);
-    emit('identified');
+    emit('identified'); // Signal success - parent should just refresh
     emit('update:modelValue', false);
   } catch (err: any) {
     // Handle conflict error

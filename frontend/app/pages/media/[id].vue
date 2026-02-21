@@ -751,24 +751,19 @@ const addToLibrary = async () => {
 // TMDB Identify modal
 const showIdentifyModal = ref(false);
 
-const handleIdentify = async (tmdbId: number, type: 'movie' | 'tv') => {
+const handleIdentify = async () => {
   const mediaEvents = useMediaEvents();
   
-  try {
-    await api.apiFetch(`/api/media/${mediaId.value}/identify`, {
-      method: 'PATCH',
-      body: { tmdbId, type },
+  // Modal already called the API - just refresh data
+  showIdentifyModal.value = false;
+  await refresh();
+  
+  // Broadcast global event
+  if (media.value?.tmdbId) {
+    mediaEvents.emit('identified', Number(mediaId.value), { 
+      tmdbId: media.value.tmdbId, 
+      type: media.value.type 
     });
-    
-    showIdentifyModal.value = false;
-    await refresh();
-    
-    // Broadcast global event
-    mediaEvents.emit('identified', Number(mediaId.value), { tmdbId, type });
-    
-    toast.success('Successfully identified media');
-  } catch (err: any) {
-    toast.error(`Failed to identify: ${err.message}`);
   }
 };
 
