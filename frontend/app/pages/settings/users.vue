@@ -218,6 +218,7 @@
 <script setup lang="ts">
 const config = useRuntimeConfig();
 const toast = useToast();
+const api = useApi();
 
 interface User {
   id: number;
@@ -274,7 +275,7 @@ const filteredUsers = computed(() => {
 // Fetch current user
 const fetchCurrentUser = async () => {
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/users/me`);
+    const response = await api.apiFetch('/api/users/me');
     currentUser.value = response as User;
   } catch (err) {
     console.error('Failed to fetch current user:', err);
@@ -287,7 +288,7 @@ const fetchUsers = async () => {
   error.value = false;
   
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/users`);
+    const response = await api.apiFetch('/api/users');
     users.value = (response as any).users || [];
   } catch (err: any) {
     console.error('Failed to fetch users:', err);
@@ -305,7 +306,7 @@ const changeRole = async (user: User, newRole: string) => {
   processing.value.add(user.id);
   
   try {
-    await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
+    await api.apiFetch(`/api/users/${user.id}`, {
       method: 'PATCH',
       body: { role: newRole },
     });
@@ -325,7 +326,7 @@ const approveUser = async (user: User) => {
   processing.value.add(user.id);
   
   try {
-    await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
+    await api.apiFetch(`/api/users/${user.id}`, {
       method: 'PATCH',
       body: { approved: true },
     });
@@ -350,7 +351,7 @@ const deleteUser = async (user: User) => {
   deleting.value = true;
   
   try {
-    await $fetch(`${config.public.apiBase}/api/users/${user.id}`, {
+    await api.apiFetch(`/api/users/${user.id}`, {
       method: 'DELETE',
     });
     

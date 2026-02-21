@@ -614,9 +614,8 @@ const { data: tmdbData, pending: tmdbPending, error: tmdbError } = await useAsyn
   async () => {
     if (!isTMDBMode.value || !tmdbId.value || !tmdbType.value) return null;
     
-    const config = useRuntimeConfig();
     const endpoint = tmdbType.value === 'movie' ? 'movie' : 'tv';
-    const apiKey = await $fetch(`${config.public.apiBase}/api/settings/tmdb-key`);
+    const apiKey = await api.apiFetch('/api/settings/tmdb-key');
     
     const response = await $fetch(
       `https://api.themoviedb.org/3/${endpoint}/${tmdbId.value}?api_key=${apiKey}&append_to_response=videos,credits,recommendations`
@@ -727,14 +726,12 @@ const addToLibrary = async () => {
   
   adding.value = true;
   try {
-    const config = useRuntimeConfig();
-    const response = await $fetch(`${config.public.apiBase}/api/media`, {
+    const response = await api.apiFetch('/api/media', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         tmdbId: tmdbId.value,
         type: tmdbType.value,
-      }),
+      },
     });
     
     toast.success('Added to library!');
@@ -758,11 +755,9 @@ const handleIdentify = async (tmdbId: number, type: 'movie' | 'tv') => {
   const mediaEvents = useMediaEvents();
   
   try {
-    const config = useRuntimeConfig();
-    await $fetch(`${config.public.apiBase}/api/media/${mediaId.value}/identify`, {
+    await api.apiFetch(`/api/media/${mediaId.value}/identify`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tmdbId, type }),
+      body: { tmdbId, type },
     });
     
     showIdentifyModal.value = false;
@@ -822,11 +817,9 @@ const toggleMonitored = async () => {
   togglingMonitor.value = true;
   try {
     const newMonitored = !displayData.value.monitored;
-    const config = useRuntimeConfig();
-    await $fetch(`${config.public.apiBase}/api/media/${mediaId.value}/monitored`, {
+    await api.apiFetch(`/api/media/${mediaId.value}/monitored`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monitored: newMonitored }),
+      body: { monitored: newMonitored },
     });
     
     // Refresh data

@@ -138,6 +138,7 @@
 <script setup lang="ts">
 const config = useRuntimeConfig();
 const toast = useToast();
+const api = useApi();
 
 interface Profile {
   id: number;
@@ -183,7 +184,7 @@ const fetchProfile = async () => {
   loading.value = true;
   
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/users/me`);
+    const response = await api.apiFetch('/api/users/me');
     profile.value = response as Profile;
   } catch (err: any) {
     console.error('Failed to fetch profile:', err);
@@ -200,7 +201,7 @@ const changeLanguage = async (language: string) => {
   savingLanguage.value = true;
   
   try {
-    await $fetch(`${config.public.apiBase}/api/users/me`, {
+    await api.apiFetch('/api/users/me', {
       method: 'PATCH',
       body: { preferredLanguage: language },
     });
@@ -233,7 +234,7 @@ const changePassword = async () => {
   savingPassword.value = true;
   
   try {
-    await $fetch(`${config.public.apiBase}/api/users/me/password`, {
+    await api.apiFetch('/api/users/me/password', {
       method: 'PATCH',
       body: {
         currentPassword: passwordForm.value.current,
