@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+const api = useApi();
 interface Props {
   modelValue: boolean;
   tmdbId: number;
@@ -131,7 +132,7 @@ watch(() => props.modelValue, async (show) => {
 
 const loadOverride = async () => {
   try {
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const data = await response.json();
       const override = data.searchTemplates?.overrides?.[props.tmdbId];
@@ -160,7 +161,7 @@ const save = async () => {
   
   try {
     // Get current settings
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (!response.ok) throw new Error('Failed to load settings');
     
     const settings = await response.json();

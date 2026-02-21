@@ -176,7 +176,7 @@ const scanBoth = async () => {
 const loadConfiguredPaths = async () => {
   loadingSettings.value = true;
   try {
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const settings = await response.json();
       configuredPaths.value = [];

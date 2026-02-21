@@ -104,7 +104,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup
+const api = useApi(); lang="ts">
 interface DirectoryItem {
   name: string;
   path: string;
@@ -135,7 +136,7 @@ const quickPaths = ref<{ name: string; path: string }[]>([]);
 // Fetch quick access paths
 const fetchQuickPaths = async () => {
   try {
-    const response = await fetch(`${config.public.apiBase}/api/filesystem/quick-paths`);
+    const response = await api.apiFetch("/api/filesystem/quick-paths");
     if (response.ok) {
       quickPaths.value = await response.json();
     }
@@ -150,16 +151,7 @@ const browsePath = async (path: string) => {
   error.value = '';
   
   try {
-    const response = await fetch(
-      `${config.public.apiBase}/api/filesystem/browse?path=${encodeURIComponent(path)}`
-    );
-    
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Failed to browse directory');
-    }
-    
-    const data = await response.json();
+    const data = await api.apiFetch(`/api/filesystem/browse?path=${encodeURIComponent(path)}`);
     currentPath.value = data.currentPath;
     items.value = data.items;
     selectedPath.value = data.currentPath;

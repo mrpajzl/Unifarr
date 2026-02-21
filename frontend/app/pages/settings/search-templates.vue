@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+const api = useApi();
 const toast = useToast();
 const saving = ref(false);
 
@@ -95,7 +96,7 @@ const settings = reactive({
 onMounted(async () => {
   try {
     const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const data = await response.json();
       if (data.searchTemplates) {
@@ -136,7 +137,7 @@ const saveSettings = async () => {
 const resetSettings = async () => {
   try {
     const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const data = await response.json();
       if (data.searchTemplates) {

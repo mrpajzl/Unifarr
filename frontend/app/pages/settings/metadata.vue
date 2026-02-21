@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+const api = useApi();
 const { showToast } = useToast();
 const route = useRoute();
 
@@ -122,7 +123,7 @@ const settings = reactive({
 onMounted(async () => {
   try {
     const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const data = await response.json();
       if (data.tmdbApiKey) settings.tmdbApiKey = data.tmdbApiKey;
@@ -136,7 +137,7 @@ onMounted(async () => {
   if (sessionId) {
     try {
       const config = useRuntimeConfig();
-      const response = await fetch(`${config.public.apiBase}/api/tmdb-auth/account?session_id=${sessionId}`);
+      const response = await api.apiFetch(`/api/tmdb-auth/account?session_id=${sessionId}`);
       if (response.ok) {
         tmdbAccount.value = await response.json();
       } else {
@@ -180,7 +181,7 @@ const saveSettings = async () => {
 const resetSettings = async () => {
   try {
     const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const data = await response.json();
       if (data.tmdbApiKey) settings.tmdbApiKey = data.tmdbApiKey;
@@ -196,10 +197,9 @@ const loginWithTMDB = async () => {
   
   try {
     const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/tmdb-auth/request-token`, {
+    const data = await api.apiFetch(`/api/tmdb-auth/request-token`, { 
       method: 'POST',
-    });
-    const data = await response.json();
+     });
 
     if (data.requestToken) {
       // Store request token temporarily

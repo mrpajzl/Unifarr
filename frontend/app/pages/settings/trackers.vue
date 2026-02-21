@@ -212,6 +212,7 @@
 </template>
 
 <script setup lang="ts">
+const api = useApi();
 const toast = useToast();
 
 const saving = ref(false);
@@ -240,7 +241,7 @@ onMounted(async () => {
     const config = useRuntimeConfig();
     
     // Load settings
-    const settingsResponse = await fetch(`${config.public.apiBase}/api/settings`);
+    const settingsResponse = await api.apiFetch(`/api/settings`);
     if (settingsResponse.ok) {
       const data = await settingsResponse.json();
       if (data.webshare) {
@@ -252,7 +253,7 @@ onMounted(async () => {
     }
 
     // Load available trackers
-    const trackersResponse = await fetch(`${config.public.apiBase}/api/trackers`);
+    const trackersResponse = await api.apiFetch(`/api/trackers`);
     if (trackersResponse.ok) {
       const data = await trackersResponse.json();
       availableTrackers.value = data.trackers || [];
@@ -283,18 +284,15 @@ const testTracker = async (trackerId: string) => {
     // Send current credentials for testing (even if not saved yet)
     const credentials = settings.trackers?.[trackerId] || {};
     
-    const response = await fetch(`${config.public.apiBase}/api/trackers/${trackerId}/test`, {
+    const data = await api.apiFetch(`/api/trackers/${trackerId}/test`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         credentials: {
           username: credentials.username,
           password: credentials.password,
         },
-      }),
+      },
     });
-    
-    const data = await response.json();
     
     if (data.success) {
       toast.success('Tracker connection successful!');
@@ -312,25 +310,18 @@ const saveSettings = async () => {
   saving.value = true;
   
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`, {
+    await api.apiFetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         webshare: settings.webshare,
         trackers: settings.trackers,
-      }),
+      },
     });
 
-    if (response.ok) {
-      toast.success('Tracker settings saved successfully');
-      
-      // Reload tracker manager
-      await fetch(`${config.public.apiBase}/api/trackers/reload`, { method: 'POST' }).catch(() => {});
-    } else {
-      const error = await response.json();
-      toast.error(`Failed to save settings: ${error.error || 'Unknown error'}`);
-    }
+    toast.success('Tracker settings saved successfully');
+    
+    // Reload tracker manager
+    await api.apiFetch(`/api/trackers/reload`, { method: "POST" }).catch(() => {});
   } catch (error: any) {
     toast.error(`Failed to save settings: ${error.message}`);
   } finally {
@@ -341,7 +332,7 @@ const saveSettings = async () => {
 const resetSettings = async () => {
   try {
     const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/settings`);
+    const response = await api.apiFetch(`/api/settings`);
     if (response.ok) {
       const data = await response.json();
       if (data.webshare) {
@@ -358,13 +349,9 @@ const testWebshare = async () => {
   testingWebshare.value = true;
   
   try {
-    const config = useRuntimeConfig();
-    const response = await fetch(`${config.public.apiBase}/api/webshare/test`, {
+    const data = await api.apiFetch('/api/webshare/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
     });
-    
-    const data = await response.json();
     
     if (data.success) {
       toast.success('Webshare.cz connection successful!');
