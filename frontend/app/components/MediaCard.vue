@@ -12,6 +12,19 @@
   >
     <!-- Poster -->
     <div class="relative aspect-[2/3] bg-dark-800 overflow-hidden">
+      <!-- Completeness indicator for TV shows -->
+      <div 
+        v-if="media.type === 'tv' && media.completeness !== undefined" 
+        class="absolute top-0 left-0 right-0 h-1 bg-gray-700 z-10"
+        :title="`${media.availableEpisodes || 0} / ${media.totalEpisodes || 0} epizod dostupných (${Math.round(media.completeness * 100)}%)`"
+      >
+        <div 
+          class="h-full transition-all"
+          :class="media.completeness >= 1 ? 'bg-green-500' : 'bg-red-500'"
+          :style="{ width: `${Math.max(media.completeness * 100, 2)}%` }"
+        ></div>
+      </div>
+      
       <img 
         v-if="media.posterPath" 
         :src="tmdb.getPosterUrl(media.posterPath)" 

@@ -19,6 +19,10 @@ export interface MediaItem {
   libraryPath?: string;
   createdAt?: string;
   updatedAt?: string;
+  // TV show completeness (added by backend)
+  availableEpisodes?: number;
+  totalEpisodes?: number;
+  completeness?: number; // 0-1 (percentage as decimal)
 }
 
 export interface File {

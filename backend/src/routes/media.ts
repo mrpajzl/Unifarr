@@ -59,8 +59,44 @@ async function getMediaWithTranslation(
 
 // Get all media items
 app.get('/', async (c) => {
-  const allMedia = await prisma.media.findMany();
-  return c.json(allMedia);
+  const allMedia = await prisma.media.findMany({
+    include: {
+      files: {
+        select: {
+          id: true,
+          parsedSeason: true,
+          parsedEpisode: true,
+        },
+      },
+    },
+  });
+  
+  // Add completeness info for TV shows
+  const enrichedMedia = allMedia.map((media) => {
+    if (media.type === 'tv' && media.numberOfEpisodes) {
+      // Count unique episodes (season + episode combination)
+      const uniqueEpisodes = new Set(
+        media.files
+          .filter(f => f.parsedSeason && f.parsedEpisode)
+          .map(f => `S${f.parsedSeason}E${f.parsedEpisode}`)
+      );
+      
+      const availableEpisodes = uniqueEpisodes.size;
+      const totalEpisodes = media.numberOfEpisodes;
+      const completeness = totalEpisodes > 0 ? availableEpisodes / totalEpisodes : 0;
+      
+      return {
+        ...media,
+        availableEpisodes,
+        totalEpisodes,
+        completeness,
+      };
+    }
+    
+    return media;
+  });
+  
+  return c.json(enrichedMedia);
 });
 
 // Get media item by ID
