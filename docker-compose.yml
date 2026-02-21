@@ -46,7 +46,7 @@ services:
     container_name: unifarr-backend
     restart: unless-stopped
     ports:
-      - "32302:3000"
+      - "32302:3002"
     volumes:
       - /mnt/storage/media/movies:/data/movies
       - /mnt/storage/media/tvshows:/data/tvshows
@@ -54,7 +54,7 @@ services:
       - ./backend/data:/app/data
       - ./backend/downloads:/app/downloads
     environment:
-      - PORT=3000
+      - PORT=3002
       - NODE_ENV=production
       - DATABASE_URL=postgresql://unifarr:unifarr@postgres:5432/unifarr
       - MOVIES_PATH=/data/movies

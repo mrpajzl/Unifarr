@@ -32,7 +32,7 @@ COPY . .
 RUN cp settings.production.json settings.json || true
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3002
 
 # Apply pending migrations then start server
 CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx src/index.ts"]
