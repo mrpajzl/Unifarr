@@ -9,17 +9,18 @@ const router = new Hono();
 
 /**
  * GET /api/downloads
- * List all active torrent downloads.
- * (HTTP downloads are tracked separately and not mixed into this list.)
+ * List all downloads (both torrent and HTTP).
  */
 router.get('/', async (c) => {
   try {
     const client = await getQBittorrentClient();
+    const httpDownloader = await getHTTPDownloader();
+    
     // Refresh so the caller always gets live data
     await client.refreshTorrents();
     const activeTorrents = client.getTorrents();
 
-    const allDownloads = activeTorrents.map(t => ({
+    const torrentDownloads = activeTorrents.map(t => ({
       id: t.infoHash,
       type: 'torrent' as const,
       name: t.name,
@@ -34,6 +35,25 @@ router.get('/', async (c) => {
       savePath: t.savePath,
       addedTime: t.addedTime,
     }));
+    
+    // Add HTTP downloads
+    const httpDownloads = httpDownloader.getAllDownloads().map(d => ({
+      id: d.id,
+      type: 'http' as const,
+      name: d.filename,
+      status: d.status,
+      progress: d.progress,
+      downloadSpeed: d.speed,
+      uploadSpeed: 0,
+      size: d.totalBytes,
+      peers: 0,
+      seeders: 0,
+      leechers: 0,
+      savePath: d.targetPath || '',
+      addedTime: d.startTime,
+    }));
+
+    const allDownloads = [...torrentDownloads, ...httpDownloads];
 
     return c.json({ downloads: allDownloads });
   } catch (error: unknown) {
@@ -45,15 +65,17 @@ router.get('/', async (c) => {
 
 /**
  * GET /api/downloads/active
- * List active (downloading / seeding) torrents
+ * List active (downloading / seeding) downloads (both torrent and HTTP)
  */
 router.get('/active', async (c) => {
   try {
     const client = await getQBittorrentClient();
+    const httpDownloader = await getHTTPDownloader();
+    
     await client.refreshTorrents();
     const torrents = client.getTorrents();
 
-    const activeDownloads = torrents
+    const activeTorrents = torrents
       .filter(t => t.state === 'downloading' || t.state === 'seeding')
       .map(t => ({
         id: t.infoHash,
@@ -68,6 +90,25 @@ router.get('/active', async (c) => {
         leechers: t.leechers,
         savePath: t.savePath,
       }));
+    
+    // Add HTTP downloads
+    const activeHTTP = httpDownloader.getAllDownloads()
+      .filter(d => d.status === 'downloading')
+      .map(d => ({
+        id: d.id,
+        name: d.filename,
+        status: d.status,
+        progress: d.progress,
+        downloadSpeed: d.speed,
+        uploadSpeed: 0,
+        size: d.totalBytes,
+        peers: 0,
+        seeders: 0,
+        leechers: 0,
+        savePath: d.targetPath || '',
+      }));
+
+    const activeDownloads = [...activeTorrents, ...activeHTTP];
 
     return c.json({ downloads: activeDownloads });
   } catch (error: unknown) {
