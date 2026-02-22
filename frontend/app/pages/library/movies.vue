@@ -9,9 +9,17 @@
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <button @click="showScan = true" class="btn btn-secondary btn-sm">
-          <Icon name="mdi:folder-search" class="w-4 h-4 mr-1.5" />
-          Scan
+        <button 
+          @click="handleScanClick" 
+          :disabled="scanning"
+          class="btn btn-secondary btn-sm"
+        >
+          <Icon 
+            :name="scanning ? 'mdi:loading' : 'mdi:folder-search'" 
+            :class="{ 'animate-spin': scanning }"
+            class="w-4 h-4 mr-1.5" 
+          />
+          {{ scanning ? 'Scanning...' : 'Scan' }}
         </button>
         <div class="flex bg-gray-800 rounded-lg p-0.5">
           <button
@@ -72,14 +80,47 @@
     </LibraryToolbar>
 
     <!-- Library Not Configured -->
-    <div v-if="!libraryConfigured" class="card p-12 text-center">
-      <Icon name="mdi:folder-alert-outline" class="w-16 h-16 mx-auto mb-4 text-yellow-500" />
-      <h3 class="text-xl font-semibold mb-2">Movies library not configured</h3>
-      <p class="text-gray-400 mb-6">Please configure the movies library path in settings to start using this feature</p>
-      <NuxtLink to="/settings/libraries" class="btn btn-primary">
-        <Icon name="mdi:cog" class="w-5 h-5 mr-2" />
-        Configure Library
-      </NuxtLink>
+    <div v-if="!libraryConfigured" class="card p-12">
+      <div class="max-w-md mx-auto">
+        <div class="text-center mb-6">
+          <Icon name="mdi:folder-alert-outline" class="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+          <h3 class="text-xl font-semibold mb-2">Movies library not configured</h3>
+          <p class="text-gray-400">Set the path to your movies folder to get started</p>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="label">Movies Folder Path</label>
+            <input
+              v-model="moviesPathInput"
+              type="text"
+              placeholder="/data/media/movies"
+              class="input w-full"
+              @keyup.enter="saveMoviesPath"
+            />
+            <p class="text-xs text-gray-500 mt-1">Directory where your movie files are stored</p>
+          </div>
+          
+          <div class="flex gap-3">
+            <NuxtLink to="/settings/libraries" class="btn btn-secondary flex-1">
+              <Icon name="mdi:cog" class="w-5 h-5 mr-2" />
+              Advanced Settings
+            </NuxtLink>
+            <button
+              @click="saveMoviesPath"
+              :disabled="!moviesPathInput || savingPath"
+              class="btn btn-primary flex-1"
+            >
+              <Icon
+                :name="savingPath ? 'mdi:loading' : 'mdi:check'"
+                :class="{ 'animate-spin': savingPath }"
+                class="w-5 h-5 mr-2"
+              />
+              {{ savingPath ? 'Saving...' : 'Save & Scan' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -104,9 +145,9 @@
       <h3 class="text-xl font-semibold mb-2">No movies yet</h3>
       <p class="text-gray-400 mb-6">Start by scanning your library or adding movies from TMDB</p>
       <div class="flex justify-center gap-3">
-        <button @click="showScan = true" class="btn btn-secondary">
-          <Icon name="mdi:folder-search" class="w-5 h-5 mr-2" />
-          Scan Library
+        <button @click="handleScanClick" :disabled="scanning" class="btn btn-secondary">
+          <Icon :name="scanning ? 'mdi:loading' : 'mdi:folder-search'" :class="{ 'animate-spin': scanning }" class="w-5 h-5 mr-2" />
+          {{ scanning ? 'Scanning...' : 'Scan Library' }}
         </button>
         <NuxtLink to="/discover" class="btn btn-primary">
           <Icon name="mdi:magnify" class="w-5 h-5 mr-2" />
@@ -209,11 +250,6 @@
       />
     </ClientOnly>
 
-    <!-- Scan Modal -->
-    <ClientOnly>
-      <ScanLibrary v-model="showScan" @scanned="onScanned" />
-    </ClientOnly>
-
     <!-- Bulk Actions Panel -->
     <BulkActionsPanel
       :selected-count="selectedCount"
@@ -232,10 +268,13 @@
 import type { MediaItem } from '~/types/api';
 
 const api = useApi();
+const toast = useToast();
 const { getTMDBImageUrl, parseGenres } = useFormatters();
 
 const viewMode = ref<'grid' | 'list'>('grid');
-const showScan = ref(false);
+const scanning = ref(false);
+const moviesPathInput = ref('');
+const savingPath = ref(false);
 
 // Selection state
 const {
@@ -527,8 +566,50 @@ watch([searchQuery, genreFilter, yearFilter, qualityFilter, showOnlyWithoutTMDB,
   currentPage.value = 1;
 });
 
-const onScanned = () => {
-  refresh();
+// Scan functionality
+const handleScanClick = async () => {
+  if (!libraryConfigured.value || !settings.value?.moviesPath) {
+    toast.error('Please configure movies library path first');
+    return;
+  }
+  
+  scanning.value = true;
+  try {
+    const result = await api.files.scan(settings.value.moviesPath, 'movies');
+    toast.success(`Scan complete: ${result.added} new movies found`);
+    refresh();
+  } catch (err: any) {
+    toast.error(`Scan failed: ${err.message}`);
+  } finally {
+    scanning.value = false;
+  }
+};
+
+// Save movies path
+const saveMoviesPath = async () => {
+  if (!moviesPathInput.value) return;
+  
+  savingPath.value = true;
+  try {
+    const response = await api.apiFetch('/api/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ moviesPath: moviesPathInput.value }),
+    });
+    
+    if (!response.ok) throw new Error('Failed to save settings');
+    
+    const updated = await response.json();
+    settings.value = updated.settings;
+    
+    toast.success('Movies library path saved!');
+    
+    // Auto-scan after saving
+    await handleScanClick();
+  } catch (error: any) {
+    toast.error(`Failed to save path: ${error.message}`);
+  } finally {
+    savingPath.value = false;
+  }
 };
 
 // Bulk action handlers
