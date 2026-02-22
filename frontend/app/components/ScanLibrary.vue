@@ -181,7 +181,7 @@ const loadConfiguredPaths = async () => {
       const settings = await response.json();
       configuredPaths.value = [];
       
-      if (settings.moviesPath && settings.moviesPath !== '/data/movies') {
+      if (settings.moviesPath) {
         configuredPaths.value.push({
           label: 'Movies Library',
           path: settings.moviesPath,
@@ -190,7 +190,7 @@ const loadConfiguredPaths = async () => {
         });
       }
       
-      if (settings.tvPath && settings.tvPath !== '/data/tvshows') {
+      if (settings.tvPath) {
         configuredPaths.value.push({
           label: 'TV Shows Library',
           path: settings.tvPath,
